@@ -1,78 +1,100 @@
-CREATE TABLE USERS (
-    user_id SERIAL PRIMARY KEY,
-    username VARCHAR(255) NOT NULL,
-    password VARCHAR(255) NOT NULL,
-    email VARCHAR(255) NOT NULL UNIQUE,
-    status CHAR(1) DEFAULT 'P' CHECK (status IN ('P', 'B', 'M'))
+CREATE TABLE USER (
+    user_id BIGSERIAL PRIMARY KEY,
+    username VARCHAR(20) NOT NULL UNIQUE,
+    password VARCHAR(20) NOT NULL,
+    email VARCHAR(50) NOT NULL UNIQUE,
+    status VARCHAR(15) DEFAULT 'active' NOT NULL CHECK (status IN ('active', 'under_review', 'muted', 'banned')),
+    report_count INT DEFAULT 0
 );
 
 CREATE TABLE USER_ROLE (
-    user_id INT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    user_id BIGINT NOT NULL,
     role VARCHAR(10) NOT NULL CHECK (role IN ('User', 'Admin')),
-    PRIMARY KEY (user_id, role)
-);
-
-CREATE TABLE ARTICLES (
-    article_id SERIAL PRIMARY KEY,
-    author_id INT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-    title VARCHAR(255) NOT NULL,
-    content TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
-);
-
-CREATE TABLE ARCHIVED_ARTICLES (
-    article_id SERIAL PRIMARY KEY,
-    author_id INT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-    title VARCHAR(255) NOT NULL,
-    content TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    archived_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
-);
-
-CREATE TABLE COMMENTS (
-    comment_id SERIAL PRIMARY KEY,
-    article_id INT NOT NULL REFERENCES articles(article_id) ON DELETE CASCADE,
-    author_id INT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-    parent_comment_id INT REFERENCES comments(comment_id) ON DELETE CASCADE,
-    content TEXT NOT NULL,
-	status CHAR(1) DEFAULT 'P' CHECK (status IN ('P', 'A')),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
-);
-
-CREATE TABLE REPORT_C (
-    report_c_id SERIAL PRIMARY KEY,
-    comment_id INT NOT NULL REFERENCES comments(comment_id) ON DELETE CASCADE,
-    reason TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    status CHAR(1) DEFAULT 'P' CHECK (status IN ('P', 'R'))
-);
-
-CREATE TABLE REPORT_A (
-    report_a_id SERIAL PRIMARY KEY,
-    article_id INT NOT NULL REFERENCES articles(article_id) ON DELETE CASCADE,
-    reason TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    status CHAR(1) DEFAULT 'P' CHECK (status IN ('P', 'R'))
+    PRIMARY KEY (user_id, role),
+    FOREIGN KEY (user_id) REFERENCES USER(user_id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 CREATE TABLE USER_FOLLOWERS (
-    follower_id INT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-    followee_id INT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    follower_id BIGINT NOT NULL,
+    followee_id BIGINT NOT NULL,
+    created_at TIMESTAMP NOT NULL,
+    PRIMARY KEY (follower_id, followee_id),
+    FOREIGN KEY (follower_id) REFERENCES USER(user_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (followee_id) REFERENCES USER(user_id) ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE TABLE ARTICLES (
+    article_id BIGSERIAL PRIMARY KEY,
+    author_id BIGINT NOT NULL,
+    title VARCHAR(100) NOT NULL,
+    content TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    PRIMARY KEY (follower_id, followee_id)
+    status VARCHAR(15) DEFAULT 'active' NOT NULL CHECK (status IN ('active', 'achieve', 'under_review')),
+    FOREIGN KEY (author_id) REFERENCES USER(user_id) ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE TABLE ARCHIVED_ARTICLES (
+    article_id BIGINT NOT NULL,
+    author_id BIGINT NOT NULL,
+    title VARCHAR(100) NOT NULL,
+    content TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL,
+    achieve_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    PRIMARY KEY (article_id),
+    FOREIGN KEY (article_id) REFERENCES ARTICLE(article_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (author_id) REFERENCES USER(user_id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 CREATE TABLE USER_FAVORITES (
-    user_id INT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-    article_id INT NOT NULL REFERENCES articles(article_id) ON DELETE CASCADE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    PRIMARY KEY (user_id, article_id)
+    user_id BIGINT NOT NULL,
+    article_id BIGINT NOT NULL,
+    saved_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    PRIMARY KEY (user_id, article_id),
+    FOREIGN KEY (user_id) REFERENCES USER(user_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (article_id) REFERENCES ARTICLE(article_id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 CREATE TABLE USER_SHARED (
-    user_id INT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-    article_id INT NOT NULL REFERENCES articles(article_id) ON DELETE CASCADE,
+    user_id BIGINT NOT NULL,
+    article_id BIGINT NOT NULL,
     shared_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    PRIMARY KEY (user_id, article_id)
+    PRIMARY KEY (user_id, article_id),
+    FOREIGN KEY (user_id) REFERENCES USER(user_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (article_id) REFERENCES ARTICLE(article_id) ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE TABLE COMMENTS (
+    comment_id BIGSERIAL PRIMARY KEY,
+    owner_id BIGINT NOT NULL,
+    article_id BIGINT NOT NULL,
+    parent_comment_id BIGINT,
+    content TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    status VARCHAR(15) DEFAULT 'active' NOT NULL CHECK (status IN ('active', 'under_review')),
+    FOREIGN KEY (owner_id) REFERENCES user(user_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (article_id) REFERENCES article(article_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (parent_comment_id) REFERENCES comment(comment_id) ON DELETE SET NULL ON UPDATE CASCADE
+);
+
+CREATE TABLE REPORT_C (
+    report_comment_id BIGSERIAL PRIMARY KEY,
+    reporter_id BIGINT NOT NULL,
+    target_comment_id BIGINT NOT NULL,
+    reason VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    status VARCHAR(20) DEFAULT 'pending' NOT NULL CHECK (status IN ('pending', 'reviewed')),
+    FOREIGN KEY (reporter_id) REFERENCES user(user_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (target_comment_id) REFERENCES comment(comment_id) ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE TABLE REPORT_A (
+    report_article_id BIGSERIAL PRIMARY KEY,
+    reporter_id BIGINT NOT NULL,
+    target_article_id BIGINT NOT NULL,
+    reason VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    status VARCHAR(20) DEFAULT 'pending' NOT NULL CHECK (status IN ('pending', 'reviewed')),
+    FOREIGN KEY (reporter_id) REFERENCES user(user_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (target_article_id) REFERENCES article(article_id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
