@@ -359,7 +359,7 @@ def get_user_favorites(user_id):
             return jsonify({"error": "User not found."}), 404
 
         favorites_query = """
-        SELECT a.article_id, a.title, a.created_at 
+        SELECT a.article_id, a.title, uf.saved_time 
         FROM USER_FAVORITES uf
         JOIN ARTICLES a ON uf.article_id = a.article_id
         WHERE uf.user_id = %s;
@@ -371,7 +371,7 @@ def get_user_favorites(user_id):
         conn.close()
 
         return jsonify([
-            {"article_id": article[0], "title": article[1], "created_at": article[2].isoformat()}
+            {"article_id": article[0], "title": article[1], "saved_time": article[2].isoformat()}
             for article in favorites
         ]), 200
 
@@ -445,8 +445,8 @@ def follow_user(user_id):
             return jsonify({"error": "Followee not found."}), 404
 
         follow_query = """
-        INSERT INTO USER_FOLLOWERS (follower_id, followee_id, created_at)
-        VALUES (%s, %s, CURRENT_TIMESTAMP)
+        INSERT INTO USER_FOLLOWERS (follower_id, followee_id)
+        VALUES (%s, %s)
         ON CONFLICT DO NOTHING;
         """
         cursor.execute(follow_query, (user_id, followee_id))
@@ -473,7 +473,7 @@ def get_user_followers(user_id):
             return jsonify({"error": "User not found."}), 404
 
         followers_query = """
-        SELECT uf.follower_id, u.username, uf.created_at
+        SELECT uf.follower_id, u.username
         FROM USER_FOLLOWERS uf
         JOIN USERS u ON uf.follower_id = u.user_id
         WHERE uf.followee_id = %s;
@@ -485,7 +485,7 @@ def get_user_followers(user_id):
         conn.close()
 
         return jsonify([
-            {"follower_id": follower[0], "username": follower[1], "followed_at": follower[2].isoformat()}
+            {"follower_id": follower[0], "username": follower[1]}
             for follower in followers
         ]), 200
 
@@ -505,7 +505,7 @@ def get_user_followings(user_id):
             return jsonify({"error": "User not found."}), 404
 
         followings_query = """
-        SELECT uf.followee_id, u.username, uf.created_at
+        SELECT uf.followee_id, u.username
         FROM USER_FOLLOWERS uf
         JOIN USERS u ON uf.followee_id = u.user_id
         WHERE uf.follower_id = %s;
@@ -517,7 +517,7 @@ def get_user_followings(user_id):
         conn.close()
 
         return jsonify([
-            {"followee_id": following[0], "username": following[1], "followed_at": following[2].isoformat()}
+            {"followee_id": following[0], "username": following[1]}
             for following in followings
         ]), 200
 
