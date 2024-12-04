@@ -48,20 +48,26 @@ def register_user():
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        
-        query = """
+
+        user_query = """
         INSERT INTO USERS (username, password, email)
         VALUES (%s, %s, %s)
         RETURNING user_id;
         """
-        cursor.execute(query, (username, hash_password(password), email))
+        cursor.execute(user_query, (username, hash_password(password), email))
         user_id = cursor.fetchone()[0]
+
+        role_query = """
+        INSERT INTO USER_ROLE (user_id, role)
+        VALUES (%s, 'User');
+        """
+        cursor.execute(role_query, (user_id,))
 
         conn.commit()
         cursor.close()
         conn.close()
 
-        return jsonify({"message": "User registered successfully.", "user_id": user_id}), 200
+        return jsonify({"message": "User registered successfully.", "user_id": user_id}), 201
 
     except psycopg2.IntegrityError as e:
         conn.rollback()
@@ -73,6 +79,7 @@ def register_user():
 
     except Exception as e:
         return jsonify({"error": "An error occurred during registration.", "details": str(e)}), 500
+
 
 @app.route('/login', methods=['POST'])
 def login_user():
@@ -105,7 +112,7 @@ def login_user():
         cursor.close()
         conn.close()
 
-        return jsonify({"message": "Login successful!", "user_id": user_id}), 200
+        return jsonify({"message": "Login successful!", "user_id": user_id}), 201
 
     except Exception as e:
         return jsonify({"error": "An error occurred during login.", "details": str(e)}), 500
@@ -232,7 +239,7 @@ def add_comment(article_id):
                 "parent_comment_id": parent_comment_id,
                 "created_at": created_at.isoformat()
             }
-        }), 200
+        }), 201
 
     except Exception as e:
         return jsonify({"error": "An error occurred while adding the comment.", "details": str(e)}), 500
@@ -283,7 +290,7 @@ def report_article():
                 "reason": reason,
                 "created_at": created_at.isoformat()
             }
-        }), 200
+        }), 201
 
     except Exception as e:
         return jsonify({"error": "An error occurred while reporting the article.", "details": str(e)}), 500
@@ -335,10 +342,187 @@ def report_comment():
                 "reason": reason,
                 "created_at": created_at.isoformat()
             }
-        }), 200
+        }), 201
 
     except Exception as e:
         return jsonify({"error": "An error occurred while reporting the comment.", "details": str(e)}), 500
+
+@app.route('/users/<int:user_id>/favorites', methods=['GET'])
+def get_user_favorites(user_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        user_query = "SELECT user_id FROM USERS WHERE user_id = %s;"
+        cursor.execute(user_query, (user_id,))
+        if not cursor.fetchone():
+            return jsonify({"error": "User not found."}), 404
+
+        favorites_query = """
+        SELECT a.article_id, a.title, a.created_at 
+        FROM USER_FAVORITES uf
+        JOIN ARTICLES a ON uf.article_id = a.article_id
+        WHERE uf.user_id = %s;
+        """
+        cursor.execute(favorites_query, (user_id,))
+        favorites = cursor.fetchall()
+
+        cursor.close()
+        conn.close()
+
+        return jsonify([
+            {"article_id": article[0], "title": article[1], "created_at": article[2].isoformat()}
+            for article in favorites
+        ]), 200
+
+    except Exception as e:
+        return jsonify({"error": "An error occurred while fetching favorites.", "details": str(e)}), 500
+
+
+@app.route('/users/<int:user_id>/favorites', methods=['POST'])
+def add_to_favorites(user_id):
+    data = request.json
+
+    article_id = data.get('article_id')
+
+    if not article_id:
+        return jsonify({"error": "Article ID is required."}), 400
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        user_query = "SELECT user_id FROM USERS WHERE user_id = %s;"
+        cursor.execute(user_query, (user_id,))
+        if not cursor.fetchone():
+            return jsonify({"error": "User not found."}), 404
+
+        article_query = "SELECT article_id FROM ARTICLES WHERE article_id = %s;"
+        cursor.execute(article_query, (article_id,))
+        if not cursor.fetchone():
+            return jsonify({"error": "Article not found."}), 404
+
+        insert_query = """
+        INSERT INTO USER_FAVORITES (user_id, article_id)
+        VALUES (%s, %s)
+        ON CONFLICT DO NOTHING;
+        """
+        cursor.execute(insert_query, (user_id, article_id))
+
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        return jsonify({"message": "Article added to favorites successfully!"}), 201
+
+    except Exception as e:
+        return jsonify({"error": "An error occurred while adding to favorites.", "details": str(e)}), 500
+
+@app.route('/users/<int:user_id>/follow', methods=['POST'])
+def follow_user(user_id):
+    data = request.json
+
+    followee_id = data.get('followee_id')
+
+    if not followee_id:
+        return jsonify({"error": "Followee ID is required."}), 400
+
+    if user_id == followee_id:
+        return jsonify({"error": "A user cannot follow themselves."}), 400
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        follower_query = "SELECT user_id FROM USERS WHERE user_id = %s;"
+        cursor.execute(follower_query, (user_id,))
+        if not cursor.fetchone():
+            return jsonify({"error": "User not found."}), 404
+
+        followee_query = "SELECT user_id FROM USERS WHERE user_id = %s;"
+        cursor.execute(followee_query, (followee_id,))
+        if not cursor.fetchone():
+            return jsonify({"error": "Followee not found."}), 404
+
+        follow_query = """
+        INSERT INTO USER_FOLLOWERS (follower_id, followee_id, created_at)
+        VALUES (%s, %s, CURRENT_TIMESTAMP)
+        ON CONFLICT DO NOTHING;
+        """
+        cursor.execute(follow_query, (user_id, followee_id))
+
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        return jsonify({"message": "Followed the user successfully!"}), 201
+
+    except Exception as e:
+        return jsonify({"error": "An error occurred while following the user.", "details": str(e)}), 500
+
+
+@app.route('/users/<int:user_id>/followers', methods=['GET'])
+def get_user_followers(user_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        user_query = "SELECT user_id FROM USERS WHERE user_id = %s;"
+        cursor.execute(user_query, (user_id,))
+        if not cursor.fetchone():
+            return jsonify({"error": "User not found."}), 404
+
+        followers_query = """
+        SELECT uf.follower_id, u.username, uf.created_at
+        FROM USER_FOLLOWERS uf
+        JOIN USERS u ON uf.follower_id = u.user_id
+        WHERE uf.followee_id = %s;
+        """
+        cursor.execute(followers_query, (user_id,))
+        followers = cursor.fetchall()
+
+        cursor.close()
+        conn.close()
+
+        return jsonify([
+            {"follower_id": follower[0], "username": follower[1], "followed_at": follower[2].isoformat()}
+            for follower in followers
+        ]), 200
+
+    except Exception as e:
+        return jsonify({"error": "An error occurred while fetching followers.", "details": str(e)}), 500
+
+
+@app.route('/users/<int:user_id>/followings', methods=['GET'])
+def get_user_followings(user_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        user_query = "SELECT user_id FROM USERS WHERE user_id = %s;"
+        cursor.execute(user_query, (user_id,))
+        if not cursor.fetchone():
+            return jsonify({"error": "User not found."}), 404
+
+        followings_query = """
+        SELECT uf.followee_id, u.username, uf.created_at
+        FROM USER_FOLLOWERS uf
+        JOIN USERS u ON uf.followee_id = u.user_id
+        WHERE uf.follower_id = %s;
+        """
+        cursor.execute(followings_query, (user_id,))
+        followings = cursor.fetchall()
+
+        cursor.close()
+        conn.close()
+
+        return jsonify([
+            {"followee_id": following[0], "username": following[1], "followed_at": following[2].isoformat()}
+            for following in followings
+        ]), 200
+
+    except Exception as e:
+        return jsonify({"error": "An error occurred while fetching followings.", "details": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(debug=True, port=8080)
