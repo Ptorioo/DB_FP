@@ -1,6 +1,8 @@
 import os
 import datetime
 import json
+from action.report_article import *
+from action.report_comment import *
 
 def view_article(article, current_user, current_user_id, client_socket):
     while True:
@@ -13,7 +15,7 @@ def view_article(article, current_user, current_user_id, client_socket):
         for idx, comment in enumerate(article["comments"], start=1):
             print(f"[{idx}] {comment['author']} (at {comment['created_at']}): {comment['content']}")
 
-        print("\nR [REPORT] Report the article")
+        print("\nR [REPORT] Report this article")
         print("C [COMMENT] Create a comment")
         print("0 [EXIT] Go back")
         command = input(f"[{current_user}] >>>").strip().lower()
@@ -37,25 +39,47 @@ def view_article(article, current_user, current_user_id, client_socket):
                     else:
                         print("Failed to post comment...")
                 input("\nPress any key to continue...")
-            case "0" | "exit":
-                break
-'''
-        match command:
             case "r" | "report":
-                report_article(article, current_user)
-            case _ if user_input.isdigit() and 1 <= int(user_input) <= len(article["comments"]):
-                comment_idx = int(user_input) - 1
+                report = report_article(article, current_user_id)
+
+                client_socket.send(json.dumps({"action": "report_article", "data": report}).encode('utf-8'))
+                response = client_socket.recv(1024).decode('utf-8')
+                response_data = json.loads(response)
+
+                if response_data.get("message") == "Article reported successfully!":
+                    print("Article is being reported...")
+                else:
+                    print("Failed to report article...")
+                input("\nPress any key to continue...")
+
+            case _ if command.isdigit() and 1 <= int(command) <= len(article["comments"]):
+                comment_idx = int(command) - 1
                 selected_comment = article["comments"][comment_idx]
                 print(f"\nSelected Comment by {selected_comment['author']}:")
                 print(f"'{selected_comment['content']}'\n")
                 print("\nR [REPORT] Report this comment")
                 print("0 [EXIT] Go back")
+
                 comment_action = input(f"[{current_user}] >>>").strip().lower()
                 if comment_action == "r" or comment_action == "report":
-                    report_comment(selected_comment, article, current_user)
+                    report = report_comment(selected_comment, current_user_id)
+
+                    client_socket.send(json.dumps({"action": "report_comment", "data": report}).encode('utf-8'))
+                    response = client_socket.recv(1024).decode('utf-8')
+                    response_data = json.loads(response)
+
+                    print(response_data)
+
+                    if response_data.get("message") == "Comment reported successfully!":
+                        print("Comment is being reported...")
+                    else:
+                        print("Failed to report comment...")
+                    input("\nPress any key to continue...")
                 elif comment_action == "0" or comment_action == "exit":
                     break
                 else:
                     print("Invalid input. Please try again.")
-                    pause()
-'''
+                    input("\nPress any key to continue...")
+
+            case "0" | "exit":
+                break

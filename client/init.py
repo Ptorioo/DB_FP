@@ -72,7 +72,7 @@ class TCPClient:
                 response_data = json.loads(response)
                 
                 for idx, article in enumerate(response_data, start=1):
-                    print(f"[{idx}] {article['title']} {article['author']} {article['created_at']}")
+                    print(f"[{idx}] {article['title']} by {article['author']} {article['created_at']}")
 
                 command = input(
                     "\n0 [LOGOUT] Log out from the platform\n"
@@ -108,14 +108,12 @@ class TCPClient:
                         response_data = json.loads(response)
 
                         view_article(response_data, self.current_user, self.current_user_id, client_socket)
-'''                    case "c" | "create":
-                        create_article(self.current_user)
-                    case "p" | "profile":
-                        view_profile(self.current_user)
                     case _:
                         print("Invalid input. Please try again.")
                         input("\nPress any key to continue...")
-            
+'''
+                    case "p" | "profile":
+                        view_profile(self.current_user)
 '''
 if __name__ == "__main__":
     client = TCPClient()

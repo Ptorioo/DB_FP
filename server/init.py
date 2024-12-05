@@ -71,6 +71,10 @@ class TCPServer:
                         response = self.create_comment(payload)
                     elif action == "create_article":
                         response = self.create_article(payload)
+                    elif action == "report_article":
+                        response = self.report_article(payload)
+                    elif action == "report_comment":
+                        response = self.report_comment(payload)
                     else:
                         response = {"message": "Unknown action."}
                     
@@ -187,6 +191,7 @@ class TCPServer:
                 a.created_at AS article_created_at,
                 c.comment_id,
                 cu.username AS comment_author,
+                cu.user_id AS comment_author_id,
                 c.content AS comment_content,
                 c.created_at AS comment_created_at
             FROM 
@@ -219,8 +224,9 @@ class TCPServer:
                     comment = {
                         "comment_id": row[5],
                         "author": row[6],
-                        "content": row[7],
-                        "created_at": row[8].isoformat()
+                        "author_id": row[7],
+                        "content": row[8],
+                        "created_at": row[9].isoformat()
                     }
                     article['comments'].append(comment)
 
@@ -275,6 +281,60 @@ class TCPServer:
 
             response = {
                 "message": "Article created successfully!"
+            }
+            return response
+
+        except Exception as e:
+            error_response = {
+                "message": str(e)
+            }
+            return error_response
+    
+    def report_article(self, data):
+        try:
+            reporter_id = data["reporter_id"]
+            target_article_id = data["target_article_id"]
+            reason = data["reason"]
+
+            query = """
+            INSERT INTO REPORT_A (reporter_id, target_article_id, reason, created_at)
+            VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
+            RETURNING report_article_id;
+            """
+            cursor = self.db.cursor()
+            cursor.execute(query, (reporter_id, target_article_id, reason))
+            report_article_id = cursor.fetchone()[0]
+            self.db.commit()
+
+            response = {
+                "message": "Article reported successfully!"
+            }
+            return response
+
+        except Exception as e:
+            error_response = {
+                "message": str(e)
+            }
+            return error_response
+
+    def report_comment(self, data):
+        try:
+            reporter_id = data["reporter_id"]
+            target_comment_id = data["target_comment_id"]
+            reason = data["reason"]
+
+            query = """
+            INSERT INTO REPORT_C (reporter_id, target_comment_id, reason, created_at)
+            VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
+            RETURNING report_comment_id;
+            """
+            cursor = self.db.cursor()
+            cursor.execute(query, (reporter_id, target_comment_id, reason))
+            report_comment_id = cursor.fetchone()[0]
+            self.db.commit()
+
+            response = {
+                "message": "Comment reported successfully!"
             }
             return response
 
