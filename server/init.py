@@ -65,6 +65,12 @@ class TCPServer:
                         response = self.login_user(payload)
                     elif action == "get_articles":
                         response = self.get_all_articles()
+                    elif action == "get_article":
+                        response = self.get_article(payload)
+                    elif action == "create_comment":
+                        response = self.create_comment(payload)
+                    elif action == "create_article":
+                        response = self.create_article(payload)
                     else:
                         response = {"message": "Unknown action."}
                     
@@ -149,18 +155,133 @@ class TCPServer:
             conn = self.db
             cursor = conn.cursor()
 
-            query = "SELECT article_id, title, created_at FROM ARTICLES;"
+            query = """
+            SELECT a.article_id, a.title, u.username AS author, a.created_at
+            FROM ARTICLES a
+            JOIN USERS u ON a.author_id = u.user_id;
+            """
             cursor.execute(query)
             articles = cursor.fetchall()
 
             response = [
-                {"article_id": article[0], "title": article[1], "created_at": article[2].isoformat()}
+                {"article_id": article[0], "title": article[1], "author": article[2], "created_at": article[3].isoformat()}
                 for article in articles
             ]
             return response
 
         except Exception as e:
             error_response = json.dumps({"message": "An error occurred while fetching articles.", "details": str(e)})
+            return error_response
+
+    def get_article(self, data):
+        try:
+            conn = self.db
+            cursor = conn.cursor()
+
+            query = """
+            SELECT 
+                a.article_id,
+                a.title AS article_title,
+                au.username AS article_author,
+                a.content AS article_content,
+                a.created_at AS article_created_at,
+                c.comment_id,
+                cu.username AS comment_author,
+                c.content AS comment_content,
+                c.created_at AS comment_created_at
+            FROM 
+                ARTICLES a
+            JOIN 
+                USERS au ON a.author_id = au.user_id
+            LEFT JOIN 
+                COMMENTS c ON c.article_id = a.article_id
+            LEFT JOIN 
+                USERS cu ON c.owner_id = cu.user_id
+            WHERE 
+                a.article_id = %s
+            ORDER BY 
+                c.created_at;
+            """
+            cursor.execute(query, (data,))
+            result = cursor.fetchall()
+
+            article = {
+                "article_id": result[0][0],
+                "title": result[0][1],
+                "author": result[0][2],
+                "content": result[0][3],
+                "created_at": result[0][4].isoformat(),
+                "comments": []
+            }
+
+            for row in result:
+                if row[5] is not None:
+                    comment = {
+                        "comment_id": row[5],
+                        "author": row[6],
+                        "content": row[7],
+                        "created_at": row[8].isoformat()
+                    }
+                    article['comments'].append(comment)
+
+            return article
+
+        except Exception as e:
+            error_response = json.dumps({"message": "An error occurred while fetching article details and comments.", "details": str(e)})
+            return error_response
+    
+    def create_comment(self, data):
+        try:
+            article_id = data["article_id"]
+            owner_id = data["owner_id"]
+            content = data["content"]
+
+            query = """
+            INSERT INTO COMMENTS (article_id, owner_id, content, created_at)
+            VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
+            RETURNING comment_id;
+            """
+            cursor = self.db.cursor()
+            cursor.execute(query, (article_id, owner_id, content))
+            comment_id = cursor.fetchone()[0]
+            self.db.commit()
+
+            response = {
+                "message": "Comment created successfully!"
+            }
+            return response
+
+        except Exception as e:
+            error_response = {
+                "message": str(e)
+            }
+            return error_response
+    
+    def create_article(self, data):
+        try:
+            author_id = data["author_id"]
+            title = data["title"]
+            content = data["content"]
+
+            query = """
+            INSERT INTO ARTICLES (author_id, title, content, created_at)
+            VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
+            RETURNING article_id;
+            """
+            cursor = self.db.cursor()
+            cursor.execute(query, (author_id, title, content))
+            article_id = cursor.fetchone()[0]
+            self.db.commit()
+
+            response = {
+                "message": "Article created successfully!"
+            }
+            return response
+
+        except Exception as e:
+            error_response = {
+                "message": str(e)
+            }
             return error_response
 
     def shutdown(self, signum, frame):

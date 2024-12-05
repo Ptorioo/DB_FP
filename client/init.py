@@ -1,8 +1,10 @@
 import socket
 import os
 import json
-from action.register import register_user
-from action.login import login_user
+from action.register import *
+from action.login import *
+from action.view_article import *
+from action.create_article import *
 
 SERVER_IP = '127.0.0.1'
 SERVER_PORT = 8080
@@ -14,6 +16,7 @@ class TCPClient:
         self.host = host
         self.port = port
         self.current_user = None
+        self.current_user_id = None
 
     def start(self):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
@@ -50,6 +53,7 @@ class TCPClient:
 
                         if response_data.get("message") == "Login successful!":
                             self.current_user = login_info["username"]
+                            self.current_user_id = response_data["user_id"]
                             break
 
                         input("\nPress any key to continue...")
@@ -62,12 +66,13 @@ class TCPClient:
                 os.system('cls' if os.name == 'nt' else 'clear')
                 print("*****Welcome*****")
 
+                # WARNING: This method is strongly advised to be improved in the future as loading all articles into buffer is very inefficient and could cause data overflow (by Arthur)
                 client_socket.send(json.dumps({"action": "get_articles"}).encode('utf-8'))
-                response = client_socket.recv(1024).decode('utf-8')
+                response = client_socket.recv(4096).decode('utf-8')
                 response_data = json.loads(response)
                 
                 for idx, article in enumerate(response_data, start=1):
-                    print(f"[{idx}] {article['title']} {article['created_at']}")
+                    print(f"[{idx}] {article['title']} {article['author']} {article['created_at']}")
 
                 command = input(
                     "\n0 [LOGOUT] Log out from the platform\n"
@@ -80,15 +85,33 @@ class TCPClient:
                     case "0" | "logout":
                         print("Logging out...")
                         break
-        
+                    case "c" | "create":
+                        article = create_article(self.current_user_id)
+
+                        client_socket.send(json.dumps({"action": "create_article", "data": article}).encode('utf-8'))
+                        response = client_socket.recv(1024).decode('utf-8')
+                        response_data = json.loads(response)
+
+                        if response_data.get("message") == "Article created successfully!":
+                            print("Your article is being posted...")
+                        else:
+                            print("Failed to post article...")
+                            print(response_data)
+                        
+                        input("\nPress any key to continue...")
+                    case _ if command.isdigit() and 1 <= int(command) <= len(response_data):
+                        article_idx = int(command) - 1
+                        selected_article_idx = response_data[article_idx]["article_id"]
+
+                        client_socket.send(json.dumps({"action": "get_article", "data": selected_article_idx}).encode('utf-8'))
+                        response = client_socket.recv(4096).decode('utf-8')
+                        response_data = json.loads(response)
+
+                        view_article(response_data, self.current_user, self.current_user_id, client_socket)
 '''                    case "c" | "create":
                         create_article(self.current_user)
                     case "p" | "profile":
                         view_profile(self.current_user)
-                    case _ if user_input.isdigit() and 1 <= int(user_input) <= len(articles):
-                        article_idx = int(user_input) - 1
-                        selected_article = articles[article_idx]
-                        view_article(selected_article, self.current_user)
                     case _:
                         print("Invalid input. Please try again.")
                         input("\nPress any key to continue...")
