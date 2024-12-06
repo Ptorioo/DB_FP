@@ -734,6 +734,192 @@ class TCPServer:
             self.db.close()
         print("Server stopped.")
 
+    def review_comment_report(self):
+        try:
+            query = """
+            SELECT * FROM REPORT_C;
+            """
+
+            cursor = self.db.cursor()
+            cursor.execute(query)
+            reports_c = cursor.fetchall()
+
+            result = [
+                {
+                    "report_comment_id": row[0],
+                    "reporter_id": row[1],
+                    "target_comment_id": row[2],
+                    "reason": row[3],
+                    "created_at": row[4].isoformat()
+                } for row in reports_c
+            ]
+
+            response = {
+                    "report comments": result
+                }
+
+            return response
+
+        except Exception as e:
+            error_response = {
+                "message": str(e)
+            }
+            return error_response
+
+    def update_comment_report(self, data):
+        try:
+            report_c_id = data["report_comment_id"]
+            status = data["status"]
+            query = """
+            UPDATE REPORT_C
+            SET status = %s
+            WHERE report_comment_id = %s;
+            """
+
+            cursor = self.db.cursor()
+            cursor.execute(query, (status, report_c_id))
+            self.db.commit()
+
+            response = {
+                    "message": "Report update!"
+                }
+
+            return response
+
+        except Exception as e:
+            error_response = {
+                "message": str(e)
+            }
+            return error_response
+
+    def review_article_report(self):
+        try:
+            query = """
+            SELECT * FROM REPORT_A;
+            """
+
+            cursor = self.db.cursor()
+            cursor.execute(query)
+            reports_a = cursor.fetchall()
+
+            result = [
+                {
+                    "report_article_id": row[0],
+                    "reporter_id": row[1],
+                    "target_comment_id": row[2],
+                    "reason": row[3],
+                    "created_at": row[4].isoformat()
+                } for row in reports_a
+            ]
+
+            response = {
+                    "report articles": result
+                }
+
+            return response
+
+        except Exception as e:
+            error_response = {
+                "message": str(e)
+            }
+            return error_response
+
+    def update_article_report(self, data):
+        try:
+            report_a_id = data["report_article_id"]
+            status = data["status"]
+            query = """
+            UPDATE REPORT_A
+            SET status = %s
+            WHERE report_article_id = %s;
+            """
+
+            cursor = self.db.cursor()
+            cursor.execute(query, (status, report_a_id))
+            self.db.commit()
+
+            response = {
+                    "message": "Report update!"
+                }
+
+            return response
+
+        except Exception as e:
+            error_response = {
+                "message": str(e)
+            }
+            return error_response
+
+    def remove_user(self, data):
+        try:
+            user_id = data["user_id"]
+            query = """
+            DELETE FROM USER
+            WHERE user_id = %s;
+            """
+            
+            cursor = self.db.cursor()
+            cursor.execute(query, (user_id))
+            self.db.commit()
+
+            response = {
+                "message": "Delete successful!"
+            }
+            return response;
+
+        except Exception as e:
+            error_response = {
+                "message": str(e)
+            }
+            return error_response
+
+    def update_user_status(self, data):
+        try:
+            user_id = data["user_id"]
+            status = data["status"]
+            query = """
+            UPDATE USER
+            SET status = %s
+            WHERE user_id = %s
+            """
+            cursor = self.db.cursor()
+            cursor.execute(query, (status, user_id))
+            self.db.commit()
+            response = {
+                "message": "Update Successful!"
+            }
+            return response;
+        except Exception as e:
+            error_response = {
+                "message": str(e)
+            }
+            return error_response
+
+    def review_users(self, data):
+        try:
+            user_id = data["user_id"]
+            query = """
+            SELECT * FROM USERS
+            WHERE user_id = %s
+            """
+            cursor = self.db.cursor()
+            cursor.execute(query, (user_id))
+            user_info = cursor.fetchall()
+            response = {
+                "user_id": row[0]
+                "username": row[1]
+                "password": row[2]
+                "email": row[3]
+                "status": row[4]
+                "report_count": row[5].isformat()
+            }
+            return response
+        except Exception as e:
+            error_response = {
+                "message": str(e)
+            }
+            return error_response
+
 if __name__ == "__main__":
     server = TCPServer()
     server.start()
