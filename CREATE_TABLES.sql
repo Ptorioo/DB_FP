@@ -28,7 +28,7 @@ CREATE TABLE ARTICLES (
     title VARCHAR(100) NOT NULL,
     content TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    status VARCHAR(15) DEFAULT 'active' NOT NULL CHECK (status IN ('active', 'achieve', 'under_review')),
+    status VARCHAR(15) DEFAULT 'active' NOT NULL CHECK (status IN ('active', 'archived', 'under_review')),
     FOREIGN KEY (author_id) REFERENCES USERS(user_id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
