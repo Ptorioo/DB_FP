@@ -123,7 +123,11 @@ def get_all_articles():
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        query = "SELECT article_id, title, created_at FROM ARTICLES;"
+        query = """
+        SELECT a.article_id, u.username, a.title, a.created_at
+        FROM ARTICLES a
+        JOIN USERS u ON a.author_id = u.user_id;
+        """
         cursor.execute(query)
         articles = cursor.fetchall()
 
@@ -155,9 +159,10 @@ def get_article_with_comments(article_id):
             return jsonify({"error": "Article not found."}), 404
 
         comments_query = """
-        SELECT comment_id, owner_id, content, created_at, parent_comment_id 
-        FROM COMMENTS 
-        WHERE article_id = %s AND status = 'active';
+        SELECT c.comment_id, u.username, c.content, c.created_at, c.parent_comment_id 
+        FROM COMMENTS c 
+        JOIN USERS u
+        WHERE c.owner_id = u.user_id AND article_id = %s AND status = 'active';
         """
         cursor.execute(comments_query, (article_id,))
         comments = cursor.fetchall()
