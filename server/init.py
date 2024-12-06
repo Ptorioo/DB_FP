@@ -64,7 +64,7 @@ class TCPServer:
                     elif action == "login":
                         response = self.login_user(payload)
                     elif action == "get_articles":
-                        response = self.get_all_articles()
+                        response = self.get_all_articles(payload)
                     elif action == "get_article":
                         response = self.get_article(payload)
                     elif action == "create_comment":
@@ -75,6 +75,22 @@ class TCPServer:
                         response = self.report_article(payload)
                     elif action == "report_comment":
                         response = self.report_comment(payload)
+                    elif action == "is_following":
+                        response = self.is_following(payload)
+                    elif action == "follow_user":
+                        response = self.follow_user(payload)
+                    elif action == "unfollow_user":
+                        response = self.unfollow_user(payload)
+                    elif action == "is_favorite":
+                        response = self.is_favorite(payload)
+                    elif action == "favorite_article":
+                        response = self.favorite_article(payload)
+                    elif action == "unfavorite_article":
+                        response = self.unfavorite_article(payload)
+                    elif action == "get_favorites":
+                        response = self.get_favorites(payload)
+                    elif action == "get_followings":
+                        response = self.get_followings(payload)
                     else:
                         response = {"message": "Unknown action."}
                     
@@ -154,27 +170,53 @@ class TCPServer:
             print(str(e))
             return {"message": "An error occurred during login.", "details": str(e)}
 
-    def get_all_articles(self):
+    def get_all_articles(self, data):
         try:
             conn = self.db
             cursor = conn.cursor()
 
+            page = data.get("page", 1)
+            size = data.get("size", 9)
+
+            if page < 1 or size < 1:
+                raise ValueError("Page and size must be positive integers.")
+
+            offset = (page - 1) * size
+
             query = """
             SELECT a.article_id, a.title, u.username AS author, a.created_at
             FROM ARTICLES a
-            JOIN USERS u ON a.author_id = u.user_id;
+            JOIN USERS u ON a.author_id = u.user_id
+            WHERE a.status != 'archived'
+            ORDER BY a.created_at DESC
+            LIMIT %s OFFSET %s;
             """
-            cursor.execute(query)
+            cursor.execute(query, (size, offset))
             articles = cursor.fetchall()
 
-            response = [
-                {"article_id": article[0], "title": article[1], "author": article[2], "created_at": article[3].isoformat()}
-                for article in articles
-            ]
+            count_query = """
+            SELECT COUNT(*)
+            FROM ARTICLES
+            WHERE status != 'archived';
+            """
+            cursor.execute(count_query)
+            total_articles = cursor.fetchone()[0]
+            total_pages = (total_articles + size - 1) // size
+
+            response = {
+                "articles": [
+                    {"article_id": article[0], "title": article[1], "author": article[2], "created_at": article[3].isoformat()}
+                    for article in articles
+                ],
+                "total_pages": total_pages
+            }
             return response
 
         except Exception as e:
-            error_response = json.dumps({"message": "An error occurred while fetching articles.", "details": str(e)})
+            error_response = {
+                "message": "An error occurred while fetching articles.",
+                "details": str(e)
+            }
             return error_response
 
     def get_article(self, data):
@@ -187,6 +229,7 @@ class TCPServer:
                 a.article_id,
                 a.title AS article_title,
                 au.username AS article_author,
+                au.user_id AS article_author_id,
                 a.content AS article_content,
                 a.created_at AS article_created_at,
                 c.comment_id,
@@ -214,19 +257,20 @@ class TCPServer:
                 "article_id": result[0][0],
                 "title": result[0][1],
                 "author": result[0][2],
-                "content": result[0][3],
-                "created_at": result[0][4].isoformat(),
+                "author_id": result[0][3],
+                "content": result[0][4],
+                "created_at": result[0][5].isoformat(),
                 "comments": []
             }
 
             for row in result:
-                if row[5] is not None:
+                if row[6] is not None:
                     comment = {
-                        "comment_id": row[5],
-                        "author": row[6],
-                        "author_id": row[7],
-                        "content": row[8],
-                        "created_at": row[9].isoformat()
+                        "comment_id": row[6],
+                        "author": row[7],
+                        "author_id": row[8],
+                        "content": row[9],
+                        "created_at": row[10].isoformat()
                     }
                     article['comments'].append(comment)
 
@@ -343,6 +387,236 @@ class TCPServer:
                 "message": str(e)
             }
             return error_response
+    
+    def is_following(self, data):
+        try:
+            user_id = data["user_id"]
+            author_id = data["author_id"]
+
+            query = """
+                SELECT EXISTS (
+                    SELECT 1 
+                    FROM USER_FOLLOWERS 
+                    WHERE follower_id = %s AND followee_id = %s
+                );
+            """
+
+            cursor = self.db.cursor()
+            cursor.execute(query, (user_id, author_id))
+            result = cursor.fetchone()[0]
+
+            if result:
+                response = {
+                    "message": "User is following."
+                }
+            else:
+                response = {
+                    "message": "User is not following."
+                }
+            return response
+
+        except Exception as e:
+            error_response = {
+                "message": str(e)
+            }
+            return error_response
+    
+    def follow_user(self, data):
+        try:
+            follower_id = data["follower_id"]
+            followee_id = data["followee_id"]
+
+            query = """
+            INSERT INTO USER_FOLLOWERS (follower_id, followee_id)
+            VALUES (%s, %s)
+            ON CONFLICT DO NOTHING;
+            """
+
+            cursor = self.db.cursor()
+            cursor.execute(query, (follower_id, followee_id))
+            self.db.commit()
+
+            response = {
+                "message": "User is now following."
+            }
+
+            return response
+
+        except Exception as e:
+            error_response = {
+                "message": str(e)
+            }
+            return error_response
+
+    def unfollow_user(self, data):
+        try:
+            follower_id = data["follower_id"]
+            followee_id = data["followee_id"]
+
+            query = """
+                DELETE FROM USER_FOLLOWERS 
+                WHERE follower_id = %s AND followee_id = %s;
+            """
+
+            cursor = self.db.cursor()
+            cursor.execute(query, (follower_id, followee_id))
+            self.db.commit()
+
+            response = {
+                "message": "User is no longer following."
+            }
+
+            return response
+
+        except Exception as e:
+            error_response = {
+                "message": str(e)
+            }
+            return error_response
+    
+    def is_favorite(self, data):
+        try:
+            user_id = data["user_id"]
+            article_id = data["article_id"]
+
+            query = """
+                SELECT EXISTS (
+                    SELECT 1 
+                    FROM USER_FAVORITES
+                    WHERE user_id = %s AND article_id = %s
+                );
+            """
+
+            cursor = self.db.cursor()
+            cursor.execute(query, (user_id, article_id))
+            result = cursor.fetchone()[0]
+
+            if result:
+                response = {
+                    "message": "User is favoriting."
+                }
+            else:
+                response = {
+                    "message": "User is not favoriting."
+                }
+            return response
+
+        except Exception as e:
+            error_response = {
+                "message": str(e)
+            }
+            return error_response
+
+    def favorite_article(self, data):
+        try:
+            user_id = data["user_id"]
+            article_id = data["article_id"]
+
+            query = """
+            INSERT INTO USER_FAVORITES (user_id, article_id, saved_time)
+            VALUES (%s, %s, CURRENT_TIMESTAMP)
+            ON CONFLICT DO NOTHING;
+            """
+
+            cursor = self.db.cursor()
+            cursor.execute(query, (user_id, article_id))
+            self.db.commit()
+
+            response = {
+                "message": "User is now favoriting."
+            }
+
+            return response
+
+        except Exception as e:
+            error_response = {
+                "message": str(e)
+            }
+            return error_response
+
+    def unfavorite_article(self, data):
+        try:
+            user_id = data["user_id"]
+            article_id = data["article_id"]
+
+            query = """
+                DELETE FROM USER_FAVORITES 
+                WHERE user_id = %s AND article_id = %s;
+            """
+
+            cursor = self.db.cursor()
+            cursor.execute(query, (user_id, article_id))
+            self.db.commit()
+
+            response = {
+                "message": "User is no longer favoriting."
+            }
+
+            return response
+
+        except Exception as e:
+            error_response = {
+                "message": str(e)
+            }
+            return error_response
+    
+    def get_favorites(self, data):
+        user_id = data
+
+        query = """
+            SELECT a.article_id, u.username AS author_username, a.title, a.created_at
+            FROM USER_FAVORITES uf
+            JOIN ARTICLES a ON uf.article_id = a.article_id
+            JOIN USERS u ON a.author_id = u.user_id
+            WHERE uf.user_id = %s;
+        """
+
+        cursor = self.db.cursor()
+        cursor.execute(query, (user_id,))
+        favorites = cursor.fetchall()
+
+        result = [
+            {
+                "article_id": row[0],
+                "author": row[1],
+                "title": row[2],
+                "created_at": row[3].isoformat()
+            } for row in favorites
+        ]
+
+        return {
+            "user_id": user_id,
+            "favorites": result
+        }
+
+    def get_followings(self, data):
+        user_id = data
+
+        query = """
+            SELECT a.article_id, u.username AS author_username, a.title, a.created_at
+            FROM USER_FOLLOWERS uf
+            JOIN ARTICLES a ON uf.followee_id = a.author_id
+            JOIN USERS u ON a.author_id = u.user_id
+            WHERE uf.follower_id = %s;
+        """
+        
+        cursor = self.db.cursor()
+        cursor.execute(query, (user_id,))
+        followings = cursor.fetchall()
+
+        result = [
+            {
+                "article_id": row[0],
+                "author": row[1],
+                "title": row[2],
+                "created_at": row[3].isoformat()
+            } for row in followings
+        ]
+
+        return {
+            "user_id": user_id,
+            "followings": result
+        }
 
     def shutdown(self, signum, frame):
         print("\nShutting down the server...")

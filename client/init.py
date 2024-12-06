@@ -5,6 +5,7 @@ from action.register import *
 from action.login import *
 from action.view_article import *
 from action.create_article import *
+from action.view_profile import *
 
 SERVER_IP = '127.0.0.1'
 SERVER_PORT = 8080
@@ -64,22 +65,34 @@ class TCPClient:
                 
             while self.current_user:
                 os.system('cls' if os.name == 'nt' else 'clear')
-                print("*****Welcome*****")
+                print("***** Welcome *****")
 
-                # WARNING: This method is strongly advised to be improved in the future as loading all articles into buffer is very inefficient and could cause data overflow (by Arthur)
-                client_socket.send(json.dumps({"action": "get_articles"}).encode('utf-8'))
-                response = client_socket.recv(4096).decode('utf-8')
+                current_page = 1
+
+                client_socket.send(json.dumps({
+                    "action": "get_articles",
+                    "data": {"page": current_page, "size": PAGE_SIZE}
+                }).encode('utf-8'))
+                response = client_socket.recv(8192).decode('utf-8')
                 response_data = json.loads(response)
-                
-                for idx, article in enumerate(response_data, start=1):
-                    print(f"[{idx}] {article['title']} by {article['author']} {article['created_at']}")
 
-                command = input(
-                    "\n0 [LOGOUT] Log out from the platform\n"
-                    "C [CREATE] Create an article\n"
-                    "P [PROFILE] View user profile\n"
-                    f"[{self.current_user}] >>>"
-                ).strip().lower()
+                articles = response_data.get("articles", [])
+                total_pages = response_data.get("total_pages", 1)
+
+                if not articles:
+                    print("No articles found.")
+                else:
+                    for idx, article in enumerate(articles, start=1 + (current_page - 1) * PAGE_SIZE):
+                        print(f"[{idx}] {article['title']} by {article['author']} {article['created_at']}")
+
+                print("\nZ [PREVIOUS] View previous page")
+                print("X [NEXT] View next page")
+                print("0 [LOGOUT] Log out from the platform")
+                print("C [CREATE] Create an article")
+                print("P [PROFILE] View user profile")
+                print("Or select an article by its number.")
+
+                command = input(f"[{self.current_user}] >>> ").strip().lower()
 
                 match command:
                     case "0" | "logout":
@@ -87,7 +100,6 @@ class TCPClient:
                         break
                     case "c" | "create":
                         article = create_article(self.current_user_id)
-
                         client_socket.send(json.dumps({"action": "create_article", "data": article}).encode('utf-8'))
                         response = client_socket.recv(1024).decode('utf-8')
                         response_data = json.loads(response)
@@ -99,22 +111,33 @@ class TCPClient:
                             print(response_data)
                         
                         input("\nPress any key to continue...")
-                    case _ if command.isdigit() and 1 <= int(command) <= len(response_data):
-                        article_idx = int(command) - 1
-                        selected_article_idx = response_data[article_idx]["article_id"]
+                    case "p" | "profile":
+                        view_profile(self.current_user, self.current_user_id, client_socket)
+                    case "z" | "previous":
+                        if current_page > 1:
+                            current_page -= 1
+                        else:
+                            print("You are on the first page.")
+                            input("\nPress any key to continue...")
+                    case "x" | "next":
+                        if current_page < total_pages:
+                            current_page += 1
+                        else:
+                            print("You are on the last page.")
+                            input("\nPress any key to continue...")
+                    case _ if command.isdigit() and 1 <= int(command) <= len(articles) + (current_page - 1) * PAGE_SIZE:
+                        article_idx = int(command) - 1 - (current_page - 1) * PAGE_SIZE
+                        selected_article_id = articles[article_idx]["article_id"]
 
-                        client_socket.send(json.dumps({"action": "get_article", "data": selected_article_idx}).encode('utf-8'))
-                        response = client_socket.recv(4096).decode('utf-8')
+                        client_socket.send(json.dumps({"action": "get_article", "data": selected_article_id}).encode('utf-8'))
+                        response = client_socket.recv(8192).decode('utf-8')
                         response_data = json.loads(response)
 
                         view_article(response_data, self.current_user, self.current_user_id, client_socket)
                     case _:
                         print("Invalid input. Please try again.")
                         input("\nPress any key to continue...")
-'''
-                    case "p" | "profile":
-                        view_profile(self.current_user)
-'''
+                        
 if __name__ == "__main__":
     client = TCPClient()
     client.start()
