@@ -60,50 +60,51 @@ class TCPServer:
                     action = request.get("action")
                     payload = request.get("data")
 
-                    if action == "register":
-                        response = self.register_user(payload)
-                    elif action == "login":
-                        response = self.login_user(payload)
-                    elif action == "get_articles":
-                        response = self.get_all_articles(payload)
-                    elif action == "get_article":
-                        response = self.get_article(payload)
-                    elif action == "create_comment":
-                        response = self.create_comment(payload)
-                    elif action == "create_article":
-                        response = self.create_article(payload)
-                    elif action == "report_article":
-                        response = self.report_article(payload)
-                    elif action == "report_comment":
-                        response = self.report_comment(payload)
-                    elif action == "is_following":
-                        response = self.is_following(payload)
-                    elif action == "follow_user":
-                        response = self.follow_user(payload)
-                    elif action == "unfollow_user":
-                        response = self.unfollow_user(payload)
-                    elif action == "is_favorite":
-                        response = self.is_favorite(payload)
-                    elif action == "favorite_article":
-                        response = self.favorite_article(payload)
-                    elif action == "unfavorite_article":
-                        response = self.unfavorite_article(payload)
-                    elif action == "get_favorites":
-                        response = self.get_favorites(payload)
-                    elif action == "get_followings":
-                        response = self.get_followings(payload)
-                    elif action == "update_email":
-                        response = self.update_email(payload)
-                    elif action == "update_password":
-                        response = self.update_password(payload)
-                    elif action == "search_article":
-                        response = self.search_article(payload)
-                    elif action == "get_shared_count":
-                        response = self.get_shared_count(payload)
-                    elif action == "share_article":
-                        response = self.share_article(payload)
-                    else:
-                        response = {"message": "Unknown action."}
+                    match action:
+                        case "register":
+                            response = self.register_user(payload)
+                        case "login":
+                            response = self.login_user(payload)
+                        case "get_articles":
+                            response = self.get_all_articles(payload)
+                        case "get_article":
+                            response = self.get_article(payload)
+                        case "create_comment":
+                            response = self.create_comment(payload)
+                        case "create_article":
+                            response = self.create_article(payload)
+                        case "report_article":
+                            response = self.report_article(payload)
+                        case "report_comment":
+                            response = self.report_comment(payload)
+                        case "is_following":
+                            response = self.is_following(payload)
+                        case "follow_user":
+                            response = self.follow_user(payload)
+                        case "unfollow_user":
+                            response = self.unfollow_user(payload)
+                        case "is_favorite":
+                            response = self.is_favorite(payload)
+                        case "favorite_article":
+                            response = self.favorite_article(payload)
+                        case "unfavorite_article":
+                            response = self.unfavorite_article(payload)
+                        case "get_favorites":
+                            response = self.get_favorites(payload)
+                        case "get_followings":
+                            response = self.get_followings(payload)
+                        case "update_email":
+                            response = self.update_email(payload)
+                        case "update_password":
+                            response = self.update_password(payload)
+                        case "search_article":
+                            response = self.search_article(payload)
+                        case "get_shared_count":
+                            response = self.get_shared_count(payload)
+                        case "share_article":
+                            response = self.share_article(payload)
+                        case _:
+                            response = {"message": "Unknown action."}
                     
                     client_socket.send(json.dumps(response).encode('utf-8'))
 
