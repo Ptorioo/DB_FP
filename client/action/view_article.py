@@ -9,6 +9,11 @@ def view_article(selected_article_id, current_user, current_user_id, client_sock
     while True:
         os.system('cls' if os.name == 'nt' else 'clear')
 
+        client_socket.send(json.dumps({"action": "get_shared_count", "data": selected_article_id}).encode('utf-8'))
+        response = client_socket.recv(1024).decode('utf-8')
+        response_data = json.loads(response)
+        shared_count = response_data["shared_count"]
+
         client_socket.send(json.dumps({"action": "get_article", "data": selected_article_id}).encode('utf-8'))
         response = client_socket.recv(8192).decode('utf-8')
         response_data = json.loads(response)
@@ -19,11 +24,13 @@ def view_article(selected_article_id, current_user, current_user_id, client_sock
         print(f"Created on: {article['created_at']}")
         print(f"Author: {article['author']}\n")
         print(f"{article['content']}\n")
+        print(f"This article has been shared {shared_count} time(s)\n")
         print("Comments:")
         for idx, comment in enumerate(article["comments"], start=1):
             print(f"[{idx}] {comment['author']} (at {comment['created_at']}): {comment['content']}")
 
-        print("\nR [REPORT] Report this article")
+        print("\n0 [EXIT] Go back")
+        print("R [REPORT] Report this article")
         print("C [COMMENT] Create a comment")
 
         client_socket.send(json.dumps({"action": "is_following", "data": {"user_id": current_user_id, "author_id": article["author_id"]}}).encode('utf-8'))
@@ -43,12 +50,12 @@ def view_article(selected_article_id, current_user, current_user_id, client_sock
         is_favorite = False
 
         if response_data.get("message") == "User is favoriting.":
-            print("S [UNFAVORITE] Unfavorite this article")
+            print("H [UNFAVORITE] Unfavorite this article")
             is_favorite = True
         else:
-            print("S [FAVORITE] Favorite this article")
+            print("H [FAVORITE] Favorite this article")
         
-        print("0 [EXIT] Go back")
+        print("S [SHARE] Share this article")
         command = input(f"[{current_user}] >>>").strip().lower()
 
         match command:
@@ -99,7 +106,7 @@ def view_article(selected_article_id, current_user, current_user_id, client_sock
                     else:
                         print("Follow failed.")
                 input("\nPress any key to continue...")
-            case "s" | "favorite" | "unfavorite":
+            case "h" | "favorite" | "unfavorite":
                 if is_favorite == True:
                     client_socket.send(json.dumps({"action": "unfavorite_article", "data": {"user_id": current_user_id, "article_id": article["article_id"]}}).encode('utf-8'))
                     response = client_socket.recv(1024).decode('utf-8')
@@ -121,6 +128,17 @@ def view_article(selected_article_id, current_user, current_user_id, client_sock
                     else:
                         print(response_data)
                         print("Favorite failed.")
+                input("\nPress any key to continue...")
+            case "s" | "share":
+                client_socket.send(json.dumps({"action": "share_article", "data": {"user_id": current_user_id, "article_id": article["article_id"]}}).encode('utf-8'))
+                response = client_socket.recv(1024).decode('utf-8')
+                response_data = json.loads(response)
+
+                if response_data.get("message") == "Article shared successfully!":
+                    print("Article shared successfully!")
+                else:
+                    print(response_data)
+                    print("Article share failed.")
                 input("\nPress any key to continue...")
             case _ if command.isdigit() and 1 <= int(command) <= len(article["comments"]):
                 comment_idx = int(command) - 1

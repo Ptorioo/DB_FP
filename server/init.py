@@ -97,6 +97,10 @@ class TCPServer:
                         response = self.update_password(payload)
                     elif action == "search_article":
                         response = self.search_article(payload)
+                    elif action == "get_shared_count":
+                        response = self.get_shared_count(payload)
+                    elif action == "share_article":
+                        response = self.share_article(payload)
                     else:
                         response = {"message": "Unknown action."}
                     
@@ -722,6 +726,60 @@ class TCPServer:
                 "message": str(e)
             }
             return error_response
+
+    def get_shared_count(self, data):
+        try:
+            article_id = data
+
+            query = """
+            SELECT COUNT(*) AS shared_count
+            FROM USER_SHARED us
+            WHERE us.article_id = %s;
+            """
+
+            cursor = self.db.cursor()
+            cursor.execute(query, (article_id,))
+
+            shared_count = cursor.fetchone()[0]
+
+            response = {
+                "shared_count": shared_count
+            }
+
+            return response
+
+        except Exception as e:
+            error_response = {
+                "message": str(e)
+            }
+            return error_response
+
+    def share_article(self, data):
+        try:
+            user_id = data["user_id"]
+            article_id = data["article_id"]
+
+            query = """
+            INSERT INTO USER_SHARED (user_id, article_id, shared_at)
+            VALUES (%s, %s, CURRENT_TIMESTAMP);
+            """
+
+            cursor = self.db.cursor()
+            cursor.execute(query, (user_id, article_id))
+            self.db.commit()
+
+            response = {
+                "message": "Article shared successfully!"
+            }
+
+            return response
+
+        except Exception as e:
+            error_response = {
+                "message": str(e)
+            }
+            return error_response
+
 
     def shutdown(self, signum, frame):
         print("\nShutting down the server...")
