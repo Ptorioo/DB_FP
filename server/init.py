@@ -95,6 +95,8 @@ class TCPServer:
                         response = self.update_email(payload)
                     elif action == "update_password":
                         response = self.update_password(payload)
+                    elif action == "search_article":
+                        response = self.search_article(payload)
                     else:
                         response = {"message": "Unknown action."}
                     
@@ -109,9 +111,9 @@ class TCPServer:
 
     def register_user(self, data):
         try:
-            username = data.get('username')
-            password = data.get('password')
-            email = data.get('email')
+            username = data["username"]
+            password = data["password"]
+            email = data["email"]
 
             if not all([username, password, email]):
                 return {"message": "All fields (username, password, email) are required."}
@@ -143,8 +145,8 @@ class TCPServer:
 
     def login_user(self, data):
         try:
-            username = data.get('username')
-            password = data.get('password')
+            username = data["username"]
+            password = data["password"]
 
             if not all([username, password]):
                 return {"message": "Both username and password are required."}
@@ -682,6 +684,37 @@ class TCPServer:
                     "message": "Password updated!"
                 }
 
+            return response
+
+        except Exception as e:
+            error_response = {
+                "message": str(e)
+            }
+            return error_response
+
+    def search_article(self, data):
+        try:
+            keyword = f"%{data}%"
+
+            query = """
+            SELECT article_id, a.title, u.username, a.created_at
+            FROM ARTICLES a
+            JOIN USERS u ON u.user_id = a.author_id
+            WHERE a.title LIKE %s and a.status != 'archived';
+            """
+
+            cursor = self.db.cursor()
+            cursor.execute(query, (keyword,))
+
+            articles = cursor.fetchall()
+
+            response = {
+                "articles": [
+                    {"article_id": article[0], "title": article[1], "author": article[2], "created_at": article[3].isoformat()}
+                    for article in articles
+                ]
+            }
+            
             return response
 
         except Exception as e:

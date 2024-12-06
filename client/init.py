@@ -6,6 +6,7 @@ from action.login import *
 from action.view_article import *
 from action.create_article import *
 from action.view_profile import *
+from action.search_article import *
 
 SERVER_IP = '127.0.0.1'
 SERVER_PORT = 8080
@@ -84,14 +85,15 @@ class TCPClient:
                     for idx, article in enumerate(articles, start=1 + (current_page - 1) * PAGE_SIZE):
                         print(f"[{idx}] {article['title']} by {article['author']} {article['created_at']}")
 
-                print("\nZ [PREVIOUS] View previous page")
+                print("\n0 [LOGOUT] Log out from the platform")
+                print("Z [PREVIOUS] View previous page")
                 print("X [NEXT] View next page")
-                print("0 [LOGOUT] Log out from the platform")
                 print("C [CREATE] Create an article")
                 print("P [PROFILE] View user profile")
-                print("Or select an article by its number.")
+                print("Q [SEARCH] Search article")
+                print("\nOr select an article by its number.")
 
-                command = input(f"[{self.current_user}] >>> ").strip().lower()
+                command = input(f"[{self.current_user}] >>>").strip().lower()
 
                 match command:
                     case "0" | "logout":
@@ -112,6 +114,41 @@ class TCPClient:
                         input("\nPress any key to continue...")
                     case "p" | "profile":
                         view_profile(self.current_user, self.current_user_id, client_socket)
+                    case "q" | "search":
+                        keyword = search_article()
+                        client_socket.send(json.dumps({"action": "search_article", "data": keyword}).encode('utf-8'))
+                        response = client_socket.recv(4096).decode('utf-8')
+                        response_data = json.loads(response)
+                            
+                        if "articles" in response_data:
+                            print("\nSearch Results:")
+                            if not response_data["articles"]:
+                                print("No articles found for the given keyword.")
+                            else:
+                                for idx, article in enumerate(response_data["articles"], 1):
+                                    print(f"[{idx}] {article['title']} by {article['author']} {article['created_at']}")
+
+                                while True:
+                                    try:
+                                        print("\nEnter the number to view an article or '0' to go back:")
+                                        selection = int(input(f"[{self.current_user}] >>>").strip())
+                                        
+                                        if selection == 0:
+                                            print("Returning to the previous menu...")
+                                            break
+                                        
+                                        if 1 <= selection <= len(response_data["articles"]):
+                                            selected_article = response_data["articles"][selection - 1]
+                                            view_article(selected_article["article_id"], self.current_user, self.current_user_id, client_socket)
+                                            break
+                                        else:
+                                            print(f"Invalid choice. Please select a number between 0 and {len(response_data['articles'])}.")
+                                    except ValueError:
+                                        print("Invalid input. Please enter a number.")
+                        else:
+                            print(response_data)
+                        
+                        input("\nPress any key to continue...")
                     case "z" | "previous":
                         if current_page > 1:
                             current_page -= 1
