@@ -1,6 +1,9 @@
 import os
 import json
 
+from action.update_email import *
+from action.update_password import *
+
 def view_profile(current_user, current_user_id, client_socket):
     while True:
         os.system('cls' if os.name == 'nt' else 'clear')
@@ -34,12 +37,38 @@ def view_profile(current_user, current_user_id, client_socket):
             "\n0 [EXIT] Return to menu\n"
             "1 [EMAIL] Change email\n"
             "2 [PWD] Change password\n"
-            "3 [ACTIVITY] View activity\n"
             f"[{current_user}] >>>").strip().lower()
         
         match command:
             case "0" | "exit":
                 break
+            case "1" | "email":
+                new_email = update_email()
+
+                client_socket.send(json.dumps({"action": "update_email", "data": {"user_id": current_user_id, "new_email": new_email}}).encode('utf-8'))
+                response = client_socket.recv(1024).decode('utf-8')
+                response_data = json.loads(response)
+
+                if response_data.get("message") == "Email updated!":
+                    print("Email updated!")
+                else:
+                    print("Email update failed.")
+
+                input("\nPress any key to continue...")
+            case "2" | "pwd":
+                new_password = update_password()
+
+                client_socket.send(json.dumps({"action": "update_password", "data": {"user_id": current_user_id, "new_password": new_password}}).encode('utf-8'))
+                response = client_socket.recv(1024).decode('utf-8')
+                response_data = json.loads(response)
+
+                if response_data.get("message") == "Password updated!":
+                    print("Password updated!")
+                else:
+                    print(response_data)
+                    print("Password update failed.")
+
+                input("\nPress any key to continue...")
             case _:
                 print("Invalid input. Please try again.")
                 input("\nPress any key to continue...")

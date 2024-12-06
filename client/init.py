@@ -62,12 +62,11 @@ class TCPClient:
                     case _:
                         print("Invalid input. Please try again.")
                         input("\nPress any key to continue...")
-                
+            
+            current_page = 1
             while self.current_user:
                 os.system('cls' if os.name == 'nt' else 'clear')
                 print("***** Welcome *****")
-
-                current_page = 1
 
                 client_socket.send(json.dumps({
                     "action": "get_articles",
@@ -129,11 +128,7 @@ class TCPClient:
                         article_idx = int(command) - 1 - (current_page - 1) * PAGE_SIZE
                         selected_article_id = articles[article_idx]["article_id"]
 
-                        client_socket.send(json.dumps({"action": "get_article", "data": selected_article_id}).encode('utf-8'))
-                        response = client_socket.recv(8192).decode('utf-8')
-                        response_data = json.loads(response)
-
-                        view_article(response_data, self.current_user, self.current_user_id, client_socket)
+                        view_article(selected_article_id, self.current_user, self.current_user_id, client_socket)
                     case _:
                         print("Invalid input. Please try again.")
                         input("\nPress any key to continue...")

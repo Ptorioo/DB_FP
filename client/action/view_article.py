@@ -5,9 +5,16 @@ from action.report_article import *
 from action.report_comment import *
 from action.create_comment import *
 
-def view_article(article, current_user, current_user_id, client_socket):
+def view_article(selected_article_id, current_user, current_user_id, client_socket):
     while True:
         os.system('cls' if os.name == 'nt' else 'clear')
+
+        client_socket.send(json.dumps({"action": "get_article", "data": selected_article_id}).encode('utf-8'))
+        response = client_socket.recv(8192).decode('utf-8')
+        response_data = json.loads(response)
+
+        article = response_data
+
         print(f"Title: {article['title']}")
         print(f"Created on: {article['created_at']}")
         print(f"Author: {article['author']}\n")

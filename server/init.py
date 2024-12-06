@@ -91,6 +91,10 @@ class TCPServer:
                         response = self.get_favorites(payload)
                     elif action == "get_followings":
                         response = self.get_followings(payload)
+                    elif action == "update_email":
+                        response = self.update_email(payload)
+                    elif action == "update_password":
+                        response = self.update_password(payload)
                     else:
                         response = {"message": "Unknown action."}
                     
@@ -561,62 +565,130 @@ class TCPServer:
             return error_response
     
     def get_favorites(self, data):
-        user_id = data
+        try:
+            user_id = data
 
-        query = """
-            SELECT a.article_id, u.username AS author_username, a.title, a.created_at
-            FROM USER_FAVORITES uf
-            JOIN ARTICLES a ON uf.article_id = a.article_id
-            JOIN USERS u ON a.author_id = u.user_id
-            WHERE uf.user_id = %s;
-        """
+            query = """
+                SELECT a.article_id, u.username AS author_username, a.title, a.created_at
+                FROM USER_FAVORITES uf
+                JOIN ARTICLES a ON uf.article_id = a.article_id
+                JOIN USERS u ON a.author_id = u.user_id
+                WHERE uf.user_id = %s;
+            """
 
-        cursor = self.db.cursor()
-        cursor.execute(query, (user_id,))
-        favorites = cursor.fetchall()
+            cursor = self.db.cursor()
+            cursor.execute(query, (user_id,))
+            favorites = cursor.fetchall()
 
-        result = [
-            {
-                "article_id": row[0],
-                "author": row[1],
-                "title": row[2],
-                "created_at": row[3].isoformat()
-            } for row in favorites
-        ]
+            result = [
+                {
+                    "article_id": row[0],
+                    "author": row[1],
+                    "title": row[2],
+                    "created_at": row[3].isoformat()
+                } for row in favorites
+            ]
 
-        return {
-            "user_id": user_id,
-            "favorites": result
-        }
+            return {
+                "user_id": user_id,
+                "favorites": result
+            }
+        
+        except Exception as e:
+            error_response = {
+                "message": str(e)
+            }
+            return error_response
 
     def get_followings(self, data):
-        user_id = data
+        try:
+            user_id = data
 
-        query = """
-            SELECT a.article_id, u.username AS author_username, a.title, a.created_at
-            FROM USER_FOLLOWERS uf
-            JOIN ARTICLES a ON uf.followee_id = a.author_id
-            JOIN USERS u ON a.author_id = u.user_id
-            WHERE uf.follower_id = %s;
-        """
-        
-        cursor = self.db.cursor()
-        cursor.execute(query, (user_id,))
-        followings = cursor.fetchall()
+            query = """
+                SELECT a.article_id, u.username AS author_username, a.title, a.created_at
+                FROM USER_FOLLOWERS uf
+                JOIN ARTICLES a ON uf.followee_id = a.author_id
+                JOIN USERS u ON a.author_id = u.user_id
+                WHERE uf.follower_id = %s;
+            """
+            
+            cursor = self.db.cursor()
+            cursor.execute(query, (user_id,))
+            followings = cursor.fetchall()
 
-        result = [
-            {
-                "article_id": row[0],
-                "author": row[1],
-                "title": row[2],
-                "created_at": row[3].isoformat()
-            } for row in followings
-        ]
+            result = [
+                {
+                    "article_id": row[0],
+                    "author": row[1],
+                    "title": row[2],
+                    "created_at": row[3].isoformat()
+                } for row in followings
+            ]
 
-        return {
-            "user_id": user_id,
-            "followings": result
-        }
+            return {
+                "user_id": user_id,
+                "followings": result
+            }
+
+        except Exception as e:
+            error_response = {
+                "message": str(e)
+            }
+            return error_response
+    
+    def update_email(self, data):
+        try:
+            user_id = data["user_id"]
+            new_email = data["new_email"]
+
+            query = """
+            UPDATE USERS
+            SET email = %s
+            WHERE user_id = %s;
+            """
+
+            cursor = self.db.cursor()
+            cursor.execute(query, (new_email, user_id))
+            self.db.commit()
+
+            response = {
+                    "message": "Email updated!"
+                }
+
+            return response
+
+        except Exception as e:
+            error_response = {
+                "message": str(e)
+            }
+            return error_response
+    
+    def update_password(self, data):
+        try:
+            user_id = data["user_id"]
+            new_password = data["new_password"]
+
+            query = """
+            UPDATE USERS
+            SET password = %s
+            WHERE user_id = %s;
+            """
+
+            cursor = self.db.cursor()
+            cursor.execute(query, (new_password, user_id))
+            self.db.commit()
+
+            response = {
+                    "message": "Password updated!"
+                }
+
+            return response
+
+        except Exception as e:
+            error_response = {
+                "message": str(e)
+            }
+            return error_response
 
     def shutdown(self, signum, frame):
         print("\nShutting down the server...")
