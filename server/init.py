@@ -4,6 +4,7 @@ import signal
 import json
 import sys
 from utils.connection import *
+from utils.auth import *
 
 SERVER_IP = '127.0.0.1'
 SERVER_PORT = 8080
@@ -130,7 +131,7 @@ class TCPServer:
             VALUES (%s, %s, %s)
             RETURNING user_id;
             """
-            cursor.execute(user_query, (username, password, email))
+            cursor.execute(user_query, (username, hash_password(password), email))
             user_id = cursor.fetchone()[0]
 
             role_query = """
@@ -169,7 +170,7 @@ class TCPServer:
 
             user_id, stored_password = result
 
-            if stored_password != password:
+            if stored_password != hash_password(password):
                 return {"message": "Invalid password."}
 
             cursor.close()
