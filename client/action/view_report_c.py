@@ -1,7 +1,7 @@
 import os
 import json
 
-def review_report_comments(client_socket, current_user):
+def view_report_comments(client_socket, current_user):
     while True:
         os.system('cls' if os.name == 'nt' else 'clear')
         print(f"Welcome, {current_user}. Reviewing pending reported comments...\n")
@@ -43,7 +43,7 @@ def review_report_comments(client_socket, current_user):
             selected_report = reports[int(selected_idx) - 1]
 
             # 查看特定舉報的詳細內容
-            view_report_details(client_socket, selected_report)
+            view_report_c_details(client_socket, selected_report)
         else:
             print("Invalid selection.")
             input("\nPress any key to continue...")
