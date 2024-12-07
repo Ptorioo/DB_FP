@@ -1,4 +1,4 @@
-def view_report_details(client_socket, report):
+def view_report_c_details(client_socket, report):
     while True:
         os.system('cls' if os.name == 'nt' else 'clear')
         print(f"Viewing Report ID: {report['report_comment_id']}\n")
@@ -9,12 +9,12 @@ def view_report_details(client_socket, report):
         print(f"\nComment Content: {report['comment_content']}\n")
 
         print("Options:")
-        print("0 - Exit (Mark as Reviewed)")
-        print("D - Delete this comment")
+        print("0 [Exit] Go back (Mark as Reviewed)")
+        print("D [Delete] Delete this comment")
 
         action = input("Select an option: ").strip().lower()
 
-        if action == "0":
+        if action == "0" or action == "exit":
             # 更新舉報狀態為 reviewed
             client_socket.send(json.dumps({
                 "action": "update_comment_report",
@@ -33,7 +33,7 @@ def view_report_details(client_socket, report):
             input("\nPress any key to continue...")
             break
 
-        elif action == "d":
+        elif action == "d" or action == "delete":
             # 刪除留言
             client_socket.send(json.dumps({
                 "action": "delete_comment",
