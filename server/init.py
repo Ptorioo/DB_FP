@@ -857,32 +857,35 @@ class TCPServer:
             return error_response
 
     def delete_comment(self, data):
-    try:
-        comment_id = data["comment_id"]
-        query = """
-        DELETE FROM COMMENTS
-        WHERE comment_id = %s;
-        """
-
-        cursor = self.db.cursor()
-        cursor.execute(query, (comment_id,))
-        self.db.commit()
-
-        response = {
-            "message": "Comment deleted successfully!"
-        }
-        return response
-
-    except Exception as e:
-        error_response = {
-            "message": str(e)
-        }
-        return error_response
+        try:
+            comment_id = data["comment_id"]
+            query = """
+            DELETE FROM COMMENTS
+            WHERE comment_id = %s;
+            """
+    
+            cursor = self.db.cursor()
+            cursor.execute(query, (comment_id,))
+            self.db.commit()
+    
+            response = {
+                "message": "Comment deleted successfully!"
+            }
+            return response
+    
+        except Exception as e:
+            error_response = {
+                "message": str(e)
+            }
+            return error_response
 
     def review_article_report(self):
         try:
             query = """
-            SELECT * FROM REPORT_A;
+            SELECT ra.report_article_id, ra.reporter_id, ra.target_article_id, ra.reason, ra.created_at, a.title, a.content
+            FROM REPORT_A ra
+            JOIN ARTICLES a ON ra.target_article_id = a.article_id
+            WHERE ra.status = 'pending';
             """
 
             cursor = self.db.cursor()
@@ -895,7 +898,9 @@ class TCPServer:
                     "reporter_id": row[1],
                     "target_comment_id": row[2],
                     "reason": row[3],
-                    "created_at": row[4].isoformat()
+                    "created_at": row[4].isoformat(),
+                    "article_title": row[5],
+                    "article_content": row[6]
                 } for row in reports_a
             ]
 
@@ -931,6 +936,29 @@ class TCPServer:
 
             return response
 
+        except Exception as e:
+            error_response = {
+                "message": str(e)
+            }
+            return error_response
+
+    def delete_article(self, data):
+        try:
+            article_id = data["article_id"]
+            query = """
+            DELETE FROM ARTICLES
+            WHERE article_id = %s;
+            """
+    
+            cursor = self.db.cursor()
+            cursor.execute(query, (article_id,))
+            self.db.commit()
+    
+            response = {
+                "message": "Article deleted successfully!"
+            }
+            return response
+    
         except Exception as e:
             error_response = {
                 "message": str(e)
