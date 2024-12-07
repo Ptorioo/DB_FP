@@ -797,7 +797,10 @@ class TCPServer:
     def review_comment_report(self):
         try:
             query = """
-            SELECT * FROM REPORT_C;
+            SELECT rc.report_comment_id, rc.reporter_id, rc.target_comment_id, rc.reason, rc.created_at, c.content
+            FROM REPORT_C rc
+            JOIN COMMENTS c ON rc.target_comment_id = c.comment_id
+            WHERE rc.status = 'pending';
             """
 
             cursor = self.db.cursor()
@@ -810,7 +813,8 @@ class TCPServer:
                     "reporter_id": row[1],
                     "target_comment_id": row[2],
                     "reason": row[3],
-                    "created_at": row[4].isoformat()
+                    "created_at": row[4].isoformat(),
+                    "comment_content": row[5]
                 } for row in reports_c
             ]
 
@@ -851,6 +855,29 @@ class TCPServer:
                 "message": str(e)
             }
             return error_response
+
+    def delete_comment(self, data):
+    try:
+        comment_id = data["comment_id"]
+        query = """
+        DELETE FROM COMMENTS
+        WHERE comment_id = %s;
+        """
+
+        cursor = self.db.cursor()
+        cursor.execute(query, (comment_id,))
+        self.db.commit()
+
+        response = {
+            "message": "Comment deleted successfully!"
+        }
+        return response
+
+    except Exception as e:
+        error_response = {
+            "message": str(e)
+        }
+        return error_response
 
     def review_article_report(self):
         try:
