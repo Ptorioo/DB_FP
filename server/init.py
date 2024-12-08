@@ -706,7 +706,7 @@ class TCPServer:
             SELECT article_id, a.title, u.username, a.created_at
             FROM ARTICLES a
             JOIN USERS u ON u.user_id = a.author_id
-            WHERE a.title LIKE %s and a.status != 'archived';
+            WHERE a.title LIKE %s and a.status = 'active';
             """
 
             cursor = self.db.cursor()
