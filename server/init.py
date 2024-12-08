@@ -1015,7 +1015,7 @@ class TCPServer:
             user_id = data["user_id"]
             query = """
             SELECT * FROM USERS
-            WHERE user_id = %s
+            WHERE user_id = %s 
             """
             cursor = self.db.cursor()
             cursor.execute(query, (user_id))
@@ -1023,7 +1023,6 @@ class TCPServer:
             response = [{
                 "user_id": row[0],
                 "username": row[1],
-                "password": row[2],
                 "email": row[3],
                 "status": row[4],
                 "report_count": row[5].isformat() 
