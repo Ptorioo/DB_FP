@@ -12,9 +12,9 @@ def view_report_c_details(client_socket, report):
         print("0 [Exit] Go back (Mark as Reviewed)")
         print("D [Delete] Delete this comment")
 
-        action = input("Select an option: ").strip().lower()
+        command = input("Select an option: ").strip().lower()
 
-        if action == "0" or action == "exit":
+        if command == "0" or command == "exit":
             # 更新舉報狀態為 reviewed
             client_socket.send(json.dumps({
                 "action": "update_comment_report",
@@ -33,7 +33,7 @@ def view_report_c_details(client_socket, report):
             input("\nPress any key to continue...")
             break
 
-        elif action == "d" or action == "delete":
+        elif command == "d" or command == "delete":
             # 刪除留言
             client_socket.send(json.dumps({
                 "action": "delete_comment",
