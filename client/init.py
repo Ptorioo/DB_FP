@@ -7,6 +7,9 @@ from action.view_article import *
 from action.create_article import *
 from action.view_profile import *
 from action.search_article import *
+from action.view_report_a import *
+from action.view_report_c import *
+from action.manage_user import *
 
 SERVER_IP = '127.0.0.1'
 SERVER_PORT = 8080
@@ -19,6 +22,7 @@ class TCPClient:
         self.port = port
         self.current_user = None
         self.current_user_id = None
+        self.current_user_role = None
 
     def start(self):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
@@ -60,6 +64,21 @@ class TCPClient:
 
                         input("\nPress any key to continue...")
 
+                    case "3" | "login_a":
+                        login_info = login_user()
+                        client_socket.send(json.dumps({"action": "login_a", "data": login_info}).encode('utf-8'))
+
+                        response = client_socket.recv(1024).decode('utf-8')
+                        response_data = json.loads(response)
+                        print(response_data.get("message", "No message received"))
+
+                        if response_data.get("message") == "Login successful!":
+                            self.current_user = login_info["username"]
+                            self.current_user_id = response_data["user_id"]
+                            self.current_user_role = "admin"
+                            break
+
+                        input("\nPress any key to continue...")
                     case _:
                         print("Invalid input. Please try again.")
                         input("\nPress any key to continue...")
@@ -91,6 +110,10 @@ class TCPClient:
                 print("C [CREATE] Create an article")
                 print("P [PROFILE] View user profile")
                 print("Q [SEARCH] Search article")
+                if self.current_user_role == "admin":
+                    print("V [VIEW_A] View reported articles")
+                    print("M [MANAGE] Manage users")
+                    print("W [VIEW_C] View reported comments")
                 print("\nOr select an article by its number.")
 
                 command = input(f"[{self.current_user}] >>>").strip().lower()
@@ -161,10 +184,27 @@ class TCPClient:
                         else:
                             print("You are on the last page.")
                             input("\nPress any key to continue...")
+                    case "v" | "view_a": 
+                        if self.current_user_role == "admin":
+                            view_report_articles(client_socket, self.current_user)
+                        else:
+                            input("\nAdmin role required."
+                                  "\nPress any key to continue...")
+                    case "m" | "manage":
+                        if self.current_user_role == "admin":
+                            manage_user(client_socket, self.current_user)
+                        else:
+                            input("\nAdmin role required."
+                                  "\nPress any key to continue...")
+                    case "w" | "view_c":
+                        if self.current_user_role == "admin":
+                            view_report_comments(client_socket, self.current_user)
+                        else:
+                            input("\nAdmin role required."
+                                  "\nPress any key to continue...")
                     case _ if command.isdigit() and 1 <= int(command) <= len(articles) + (current_page - 1) * PAGE_SIZE:
                         article_idx = int(command) - 1 - (current_page - 1) * PAGE_SIZE
                         selected_article_id = articles[article_idx]["article_id"]
-
                         view_article(selected_article_id, self.current_user, self.current_user_id, client_socket)
                     case _:
                         print("Invalid input. Please try again.")
