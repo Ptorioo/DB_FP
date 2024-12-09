@@ -60,27 +60,9 @@ class TCPClient:
                         if response_data.get("message") == "Login successful!":
                             self.current_user = login_info["username"]
                             self.current_user_id = response_data["user_id"]
+                            self.current_user_role = response_data["user_role"]
                             break
 
-                        input("\nPress any key to continue...")
-
-                    case "3" | "login_a":
-                        login_info = login_user()
-                        client_socket.send(json.dumps({"action": "login_a", "data": login_info}).encode('utf-8'))
-
-                        response = client_socket.recv(1024).decode('utf-8')
-                        response_data = json.loads(response)
-                        print(response_data.get("message", "No message received"))
-
-                        if response_data.get("message") == "Login successful!":
-                            self.current_user = login_info["username"]
-                            self.current_user_id = response_data["user_id"]
-                            self.current_user_role = "admin"
-                            break
-
-                        input("\nPress any key to continue...")
-                    case _:
-                        print("Invalid input. Please try again.")
                         input("\nPress any key to continue...")
             
             current_page = 1
@@ -110,7 +92,7 @@ class TCPClient:
                 print("C [CREATE] Create an article")
                 print("P [PROFILE] View user profile")
                 print("Q [SEARCH] Search article")
-                if self.current_user_role == "admin":
+                if self.current_user_role == "Admin":
                     print("V [VIEW_A] View reported articles")
                     print("M [MANAGE] Manage users")
                     print("W [VIEW_C] View reported comments")
@@ -185,19 +167,19 @@ class TCPClient:
                             print("You are on the last page.")
                             input("\nPress any key to continue...")
                     case "v" | "view_a": 
-                        if self.current_user_role == "admin":
+                        if self.current_user_role == "Admin":
                             view_report_articles(client_socket, self.current_user)
                         else:
                             input("\nAdmin role required."
                                   "\nPress any key to continue...")
                     case "m" | "manage":
-                        if self.current_user_role == "admin":
+                        if self.current_user_role == "Admin":
                             manage_user(client_socket, self.current_user)
                         else:
                             input("\nAdmin role required."
                                   "\nPress any key to continue...")
                     case "w" | "view_c":
-                        if self.current_user_role == "admin":
+                        if self.current_user_role == "Admin":
                             view_report_comments(client_socket, self.current_user)
                         else:
                             input("\nAdmin role required."

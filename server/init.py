@@ -179,7 +179,10 @@ class TCPServer:
             cursor = conn.cursor()
 
             query = """
-            SELECT user_id, password FROM USERS WHERE username = %s;
+            SELECT u.user_id, u.password, ur.role
+            FROM USERS u
+            JOIN USER_ROLE ur ON u.user_id = ur.user_id
+            WHERE u.username = %s;
             """
             cursor.execute(query, (username,))
             result = cursor.fetchone()
@@ -187,14 +190,14 @@ class TCPServer:
             if not result:
                 return {"message": "User not found."}
 
-            user_id, stored_password = result
+            user_id, stored_password, user_role = result
 
             if stored_password != hash_password(password):
                 return {"message": "Invalid password."}
 
             cursor.close()
 
-            return {"message": "Login successful!", "user_id": user_id}
+            return {"message": "Login successful!", "user_id": user_id, "user_role": user_role}
 
         except Exception as e:
             print(str(e))
@@ -240,6 +243,9 @@ class TCPServer:
                 ],
                 "total_pages": total_pages
             }
+
+            cursor.close()
+
             return response
 
         except Exception as e:
@@ -304,6 +310,8 @@ class TCPServer:
                     }
                     article['comments'].append(comment)
 
+            cursor.close()
+
             return article
 
         except Exception as e:
@@ -321,17 +329,23 @@ class TCPServer:
             VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
             RETURNING comment_id;
             """
-            cursor = self.db.cursor()
+
+            conn = self.db
+            cursor = conn.cursor()
             cursor.execute(query, (article_id, owner_id, content))
             comment_id = cursor.fetchone()[0]
-            self.db.commit()
+            conn.commit()
 
             response = {
                 "message": "Comment created successfully!"
             }
+
+            cursor.close()
+
             return response
 
         except Exception as e:
+            conn.rollback()
             error_response = {
                 "message": str(e)
             }
@@ -348,17 +362,23 @@ class TCPServer:
             VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
             RETURNING article_id;
             """
-            cursor = self.db.cursor()
+
+            conn = self.db
+            cursor = conn.cursor()
             cursor.execute(query, (author_id, title, content))
             article_id = cursor.fetchone()[0]
-            self.db.commit()
+            conn.commit()
 
             response = {
                 "message": "Article created successfully!"
             }
+
+            cursor.close()
+
             return response
 
         except Exception as e:
+            conn.rollback()
             error_response = {
                 "message": str(e)
             }
@@ -375,17 +395,23 @@ class TCPServer:
             VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
             RETURNING report_article_id;
             """
-            cursor = self.db.cursor()
+
+            conn = self.db
+            cursor = conn.cursor()
             cursor.execute(query, (reporter_id, target_article_id, reason))
             report_article_id = cursor.fetchone()[0]
-            self.db.commit()
+            conn.commit()
 
             response = {
                 "message": "Article reported successfully!"
             }
+
+            cursor.close()
+
             return response
 
         except Exception as e:
+            conn.rollback()
             error_response = {
                 "message": str(e)
             }
@@ -402,17 +428,23 @@ class TCPServer:
             VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
             RETURNING report_comment_id;
             """
-            cursor = self.db.cursor()
+
+            conn = self.db
+            cursor = conn.cursor()
             cursor.execute(query, (reporter_id, target_comment_id, reason))
             report_comment_id = cursor.fetchone()[0]
-            self.db.commit()
+            conn.commit()
 
             response = {
                 "message": "Comment reported successfully!"
             }
+
+            cursor.close()
+
             return response
 
         except Exception as e:
+            conn.rollback()
             error_response = {
                 "message": str(e)
             }
@@ -431,7 +463,8 @@ class TCPServer:
                 );
             """
 
-            cursor = self.db.cursor()
+            conn = self.db
+            cursor = conn.cursor()
             cursor.execute(query, (user_id, author_id))
             result = cursor.fetchone()[0]
 
@@ -443,6 +476,9 @@ class TCPServer:
                 response = {
                     "message": "User is not following."
                 }
+
+            cursor.close()
+
             return response
 
         except Exception as e:
@@ -462,17 +498,21 @@ class TCPServer:
             ON CONFLICT DO NOTHING;
             """
 
-            cursor = self.db.cursor()
+            conn = self.db
+            cursor = conn.cursor()
             cursor.execute(query, (follower_id, followee_id))
-            self.db.commit()
+            conn.commit()
 
             response = {
                 "message": "User is now following."
             }
 
+            cursor.close()
+
             return response
 
         except Exception as e:
+            conn.rollback()
             error_response = {
                 "message": str(e)
             }
@@ -488,17 +528,21 @@ class TCPServer:
                 WHERE follower_id = %s AND followee_id = %s;
             """
 
-            cursor = self.db.cursor()
+            conn = self.db
+            cursor = conn.cursor()
             cursor.execute(query, (follower_id, followee_id))
-            self.db.commit()
+            conn.commit()
 
             response = {
                 "message": "User is no longer following."
             }
 
+            cursor.close()
+
             return response
 
         except Exception as e:
+            conn.rollback()
             error_response = {
                 "message": str(e)
             }
@@ -517,7 +561,8 @@ class TCPServer:
                 );
             """
 
-            cursor = self.db.cursor()
+            conn = self.db
+            cursor = conn.cursor()
             cursor.execute(query, (user_id, article_id))
             result = cursor.fetchone()[0]
 
@@ -529,6 +574,9 @@ class TCPServer:
                 response = {
                     "message": "User is not favoriting."
                 }
+
+            cursor.close()
+
             return response
 
         except Exception as e:
@@ -548,17 +596,21 @@ class TCPServer:
             ON CONFLICT DO NOTHING;
             """
 
-            cursor = self.db.cursor()
+            conn = self.db
+            cursor = conn.cursor()
             cursor.execute(query, (user_id, article_id))
-            self.db.commit()
+            conn.commit()
 
             response = {
                 "message": "User is now favoriting."
             }
 
+            cursor.close()
+
             return response
 
         except Exception as e:
+            conn.rollback()
             error_response = {
                 "message": str(e)
             }
@@ -574,17 +626,21 @@ class TCPServer:
                 WHERE user_id = %s AND article_id = %s;
             """
 
-            cursor = self.db.cursor()
+            conn = self.db
+            cursor = conn.cursor()
             cursor.execute(query, (user_id, article_id))
-            self.db.commit()
+            conn.commit()
 
             response = {
                 "message": "User is no longer favoriting."
             }
 
+            cursor.close()
+
             return response
 
         except Exception as e:
+            conn.rollback()
             error_response = {
                 "message": str(e)
             }
@@ -602,7 +658,8 @@ class TCPServer:
                 WHERE uf.user_id = %s;
             """
 
-            cursor = self.db.cursor()
+            conn = self.db
+            cursor = conn.cursor()
             cursor.execute(query, (user_id,))
             favorites = cursor.fetchall()
 
@@ -614,6 +671,8 @@ class TCPServer:
                     "created_at": row[3].isoformat()
                 } for row in favorites
             ]
+
+            cursor.close()
 
             return {
                 "user_id": user_id,
@@ -638,7 +697,8 @@ class TCPServer:
                 WHERE uf.follower_id = %s;
             """
             
-            cursor = self.db.cursor()
+            conn = self.db
+            cursor = conn.cursor()
             cursor.execute(query, (user_id,))
             followings = cursor.fetchall()
 
@@ -650,6 +710,8 @@ class TCPServer:
                     "created_at": row[3].isoformat()
                 } for row in followings
             ]
+
+            cursor.close()
 
             return {
                 "user_id": user_id,
@@ -673,17 +735,21 @@ class TCPServer:
             WHERE user_id = %s;
             """
 
-            cursor = self.db.cursor()
+            conn = self.db
+            cursor = conn.cursor()
             cursor.execute(query, (new_email, user_id))
-            self.db.commit()
+            conn.commit()
 
             response = {
                     "message": "Email updated!"
                 }
 
+            cursor.close()
+
             return response
 
         except Exception as e:
+            conn.rollback()
             error_response = {
                 "message": str(e)
             }
@@ -700,17 +766,21 @@ class TCPServer:
             WHERE user_id = %s;
             """
 
-            cursor = self.db.cursor()
+            conn = self.db
+            cursor = conn.cursor()
             cursor.execute(query, (new_password, user_id))
-            self.db.commit()
+            conn.commit()
 
             response = {
                     "message": "Password updated!"
                 }
 
+            cursor.close()
+
             return response
 
         except Exception as e:
+            conn.rollback()
             error_response = {
                 "message": str(e)
             }
@@ -727,7 +797,8 @@ class TCPServer:
             WHERE a.title LIKE %s and a.status = 'active';
             """
 
-            cursor = self.db.cursor()
+            conn = self.db
+            cursor = conn.cursor()
             cursor.execute(query, (keyword,))
 
             articles = cursor.fetchall()
@@ -738,6 +809,8 @@ class TCPServer:
                     for article in articles
                 ]
             }
+
+            cursor.close()
             
             return response
 
@@ -757,7 +830,8 @@ class TCPServer:
             WHERE us.article_id = %s;
             """
 
-            cursor = self.db.cursor()
+            conn = self.db
+            cursor = conn.cursor()
             cursor.execute(query, (article_id,))
 
             shared_count = cursor.fetchone()[0]
@@ -765,6 +839,8 @@ class TCPServer:
             response = {
                 "shared_count": shared_count
             }
+
+            cursor.close()
 
             return response
 
@@ -784,17 +860,21 @@ class TCPServer:
             VALUES (%s, %s, CURRENT_TIMESTAMP);
             """
 
-            cursor = self.db.cursor()
+            conn = self.db
+            cursor = conn.cursor()
             cursor.execute(query, (user_id, article_id))
-            self.db.commit()
+            conn.commit()
 
             response = {
                 "message": "Article shared successfully!"
             }
 
+            cursor.close()
+
             return response
 
         except Exception as e:
+            conn.rollback()
             error_response = {
                 "message": str(e)
             }
@@ -809,7 +889,10 @@ class TCPServer:
         if self.server_socket:
             self.server_socket.close()
         if self.db:
-            self.db.close()
+            conn = self.db
+            cursor = conn.cursor()
+            cursor.close()
+            conn.close()
         print("Server stopped.")
 
     def review_comment_report(self):
@@ -821,7 +904,8 @@ class TCPServer:
             WHERE rc.status = 'pending';
             """
 
-            cursor = self.db.cursor()
+            conn = self.db
+            cursor = conn.cursor()
             cursor.execute(query)
             reports_c = cursor.fetchall()
 
@@ -837,6 +921,8 @@ class TCPServer:
                     } for row in reports_c
                 ] 
             }
+
+            cursor.close()
 
             return response
 
@@ -856,17 +942,21 @@ class TCPServer:
             WHERE report_comment_id = %s;
             """
 
-            cursor = self.db.cursor()
+            conn = self.db
+            cursor = conn.cursor()
             cursor.execute(query, (status, report_c_id))
-            self.db.commit()
+            conn.commit()
 
             response = {
                     "message": "Report update!"
                 }
 
+            cursor.close()
+
             return response
 
         except Exception as e:
+            conn.rollback()
             error_response = {
                 "message": str(e)
             }
@@ -880,16 +970,21 @@ class TCPServer:
             WHERE comment_id = %s;
             """
     
-            cursor = self.db.cursor()
+            conn = self.db
+            cursor = conn.cursor()
             cursor.execute(query, (comment_id,))
-            self.db.commit()
+            conn.commit()
     
             response = {
                 "message": "Comment deleted successfully!"
             }
+
+            cursor.close()
+
             return response
     
         except Exception as e:
+            conn.rollback()
             error_response = {
                 "message": str(e)
             }
@@ -904,7 +999,8 @@ class TCPServer:
             WHERE ra.status = 'pending';
             """
 
-            cursor = self.db.cursor()
+            conn = self.db
+            cursor = conn.cursor()
             cursor.execute(query)
             reports_a = cursor.fetchall()
 
@@ -922,6 +1018,8 @@ class TCPServer:
                  ] 
             }
 
+            cursor.close()
+
             return response
 
         except Exception as e:
@@ -934,23 +1032,28 @@ class TCPServer:
         try:
             report_a_id = data["report_article_id"]
             status = data["status"]
+            
             query = """
             UPDATE REPORT_A
             SET status = %s
             WHERE report_article_id = %s;
             """
 
-            cursor = self.db.cursor()
+            conn = self.db
+            cursor = conn.cursor()
             cursor.execute(query, (status, report_a_id))
-            self.db.commit()
+            conn.commit()
 
             response = {
                     "message": "Report update!"
                 }
 
+            cursor.close()
+
             return response
 
         except Exception as e:
+            conn.rollback()
             error_response = {
                 "message": str(e)
             }
@@ -959,21 +1062,27 @@ class TCPServer:
     def delete_article(self, data):
         try:
             article_id = data["article_id"]
+
             query = """
             DELETE FROM ARTICLES
             WHERE article_id = %s;
             """
     
-            cursor = self.db.cursor()
+            conn = self.db
+            cursor = conn.cursor()
             cursor.execute(query, (article_id,))
-            self.db.commit()
+            conn.commit()
     
             response = {
                 "message": "Article deleted successfully!"
             }
+
+            cursor.close()
+
             return response
     
         except Exception as e:
+            conn.rollback()
             error_response = {
                 "message": str(e)
             }
@@ -982,21 +1091,27 @@ class TCPServer:
     def remove_user(self, data):
         try:
             user_id = data["user_id"]
+            
             query = """
             DELETE FROM USER
             WHERE user_id = %s;
             """
             
-            cursor = self.db.cursor()
+            conn = self.db
+            cursor = conn.cursor()
             cursor.execute(query, (user_id))
-            self.db.commit()
+            conn.commit()
 
             response = {
                 "message": "Delete successful!"
             }
+
+            cursor.close()
+
             return response
 
         except Exception as e:
+            conn.rollback()
             error_response = {
                 "message": str(e)
             }
@@ -1006,20 +1121,28 @@ class TCPServer:
         try:
             user_id = data["user_id"]
             status = data["status"]
-            print(status)
+
             query = """
             UPDATE USERS
             SET status = %s
             WHERE user_id = %s
             """
-            cursor = self.db.cursor()
+
+            conn = self.db
+            cursor = conn.cursor()
             cursor.execute(query, (status, user_id,))
-            self.db.commit()
+            conn.commit()
+            
             response = {
                 "message": "Update Successful!"
             }
+            
+            cursor.close()
+            
             return response
+        
         except Exception as e:
+            conn.rollback()
             error_response = {
                 "message": str(e)
             }
@@ -1028,13 +1151,17 @@ class TCPServer:
     def review_users(self, data):
         try:
             user_id = data["user_id"]
+            
             query = """
             SELECT * FROM USERS
             WHERE user_id = %s
             """
-            cursor = self.db.cursor()
+            
+            conn = self.db
+            cursor = conn.cursor()
             cursor.execute(query, (user_id,))
             user_info = cursor.fetchall()
+            
             response = {
                 "user_info":[
                     {
@@ -1047,6 +1174,9 @@ class TCPServer:
                     } for row in user_info
                 ] 
             }
+
+            cursor.close()
+
             return response
         
         except Exception as e:
