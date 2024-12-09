@@ -103,6 +103,24 @@ class TCPServer:
                             response = self.get_shared_count(payload)
                         case "share_article":
                             response = self.share_article(payload)
+                        case "review_article_report":
+                            response = self.review_article_report()
+                        case "review_comment_report":
+                            response = self.review_comment_report()
+                        case "update_article_report":
+                            response = self.update_article_report(payload)
+                        case "update_comment_report":
+                            response = self.update_comment_report(payload)
+                        case "review_users":
+                            response = self.review_users(payload)
+                        case "delete_article":
+                            response = self.delete_article(payload)
+                        case "delete_comment":
+                            response = self.delete_comment(payload)
+                        case "remove_user":
+                            response = self.remove_user(payload)
+                        case "update_user_status":
+                            response = self.update_user_status(payload)
                         case _:
                             response = {"message": "Unknown action."}
                     
@@ -807,20 +825,18 @@ class TCPServer:
             cursor.execute(query)
             reports_c = cursor.fetchall()
 
-            result = [
-                {
+            response = {
+                "report_comments":[
+                    {
                     "report_comment_id": row[0],
                     "reporter_id": row[1],
                     "target_comment_id": row[2],
                     "reason": row[3],
                     "created_at": row[4].isoformat(),
                     "comment_content": row[5]
-                } for row in reports_c
-            ]
-
-            response = {
-                    "report comments": result
-                }
+                    } for row in reports_c
+                ] 
+            }
 
             return response
 
@@ -892,21 +908,19 @@ class TCPServer:
             cursor.execute(query)
             reports_a = cursor.fetchall()
 
-            result = [
-                {
+            response = {
+                "report_articles": [
+                    {
                     "report_article_id": row[0],
                     "reporter_id": row[1],
-                    "target_comment_id": row[2],
+                    "target_article_id": row[2],
                     "reason": row[3],
                     "created_at": row[4].isoformat(),
                     "article_title": row[5],
                     "article_content": row[6]
-                } for row in reports_a
-            ]
-
-            response = {
-                    "report articles": result
-                }
+                    } for row in reports_a
+                 ] 
+            }
 
             return response
 
@@ -992,18 +1006,19 @@ class TCPServer:
         try:
             user_id = data["user_id"]
             status = data["status"]
+            print(status)
             query = """
-            UPDATE USER
+            UPDATE USERS
             SET status = %s
             WHERE user_id = %s
             """
             cursor = self.db.cursor()
-            cursor.execute(query, (status, user_id))
+            cursor.execute(query, (status, user_id,))
             self.db.commit()
             response = {
                 "message": "Update Successful!"
             }
-            return response;
+            return response
         except Exception as e:
             error_response = {
                 "message": str(e)
@@ -1015,19 +1030,23 @@ class TCPServer:
             user_id = data["user_id"]
             query = """
             SELECT * FROM USERS
-            WHERE user_id = %s 
+            WHERE user_id = %s
             """
             cursor = self.db.cursor()
-            cursor.execute(query, (user_id))
+            cursor.execute(query, (user_id,))
             user_info = cursor.fetchall()
-            response = [{
-                "user_id": row[0],
-                "username": row[1],
-                "email": row[3],
-                "status": row[4],
-                "report_count": row[5].isformat() 
-            } for row in user_info
-            ]
+            response = {
+                "user_info":[
+                    {
+                    "user_id": row[0],
+                    "username": row[1],
+                    "password": row[2],
+                    "email": row[3],
+                    "status": row[4],
+                    "report_count": row[5]
+                    } for row in user_info
+                ] 
+            }
             return response
         
         except Exception as e:
