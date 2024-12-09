@@ -25,7 +25,15 @@ def manage_user(client_socket, current_user):
             input("\nPress any key to continue...")
             continue
 
-        user = response_data[0]  # 查詢返回單個用戶的資料
+        # 確保獲取到 user_info 列表
+        user_info = response_data.get("user_info", [])
+        if not user_info:
+            print("No user found with the given ID.")
+            input("\nPress any key to continue...")
+            continue
+
+        # 假設返回的 user_info 列表中只會有一個用戶，直接取第一個
+        user = user_info[0]
         print(f"Managing User ID: {user['user_id']}\n")
         print(f"Username: {user['username']}")
         print(f"Email: {user['email']}")
@@ -43,7 +51,7 @@ def manage_user(client_socket, current_user):
                 break
             case "u" | "update":
                 update_user_status(client_socket, user)
-            case :
+            case "r" | "remove":
                 remove_user(client_socket, user)
             case _:
                 print("Invalid input. Please try again.")
@@ -62,12 +70,44 @@ def update_user_status(client_socket, user):
         "Select Option: ").strip().lower()
 
     match new_status:
-        case "a" | "active" | "b" | "banned" | "m" | "muted":
+        case "a" | "active":
             client_socket.send(json.dumps({
                 "action": "update_user_status",
                 "data": {
                     "user_id": user["user_id"],
-                    "status": new_status
+                    "status": "active"
+                }
+            }).encode('utf-8'))
+            response = client_socket.recv(1024).decode('utf-8')
+            response_data = json.loads(response)
+        
+            if response_data.get("message") == "Update Successful!":
+                print("User status updated successfully!")
+            else:
+                print(f"Failed to update status. Error: {response_data.get('message', 'Unknown error')}")
+            input("\nPress any key to continue...")
+        case "b" | "banned":
+            client_socket.send(json.dumps({
+                "action": "update_user_status",
+                "data": {
+                    "user_id": user["user_id"],
+                    "status": "banned"
+                }
+            }).encode('utf-8'))
+            response = client_socket.recv(1024).decode('utf-8')
+            response_data = json.loads(response)
+        
+            if response_data.get("message") == "Update Successful!":
+                print("User status updated successfully!")
+            else:
+                print(f"Failed to update status. Error: {response_data.get('message', 'Unknown error')}")
+            input("\nPress any key to continue...")
+        case "m" | "muted":
+            client_socket.send(json.dumps({
+                "action": "update_user_status",
+                "data": {
+                    "user_id": user["user_id"],
+                    "status": "muted"
                 }
             }).encode('utf-8'))
             response = client_socket.recv(1024).decode('utf-8')
