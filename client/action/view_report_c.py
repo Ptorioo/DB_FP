@@ -34,10 +34,10 @@ def view_report_comments(client_socket, current_user):
 
         # 提供選擇
         print("\nOptions:")
-        print("0 - Exit")
-        selected_idx = input("Select a report by number to view details: ").strip()
+        print("0 [Exit] Go back")
+        selected_idx = input("Select a report by number to view details: ").strip().lower()
 
-        if selected_idx == "0":
+        if selected_idx == "0" or selected_idx == "exit":
             return
         elif selected_idx.isdigit() and 1 <= int(selected_idx) <= len(reports):
             selected_report = reports[int(selected_idx) - 1]
