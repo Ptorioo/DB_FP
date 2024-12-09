@@ -121,6 +121,14 @@ class TCPServer:
                             response = self.remove_user(payload)
                         case "update_user_status":
                             response = self.update_user_status(payload)
+                        case "get_user_article":
+                            response = self.get_user_article(payload)
+                        case "archive_article":
+                            response = self.archive_article(payload)
+                        case "get_user_archive":
+                            response = self.get_user_archive(payload)
+                        case "unarchive_article":
+                            response = self.unarchive_article(payload)
                         case _:
                             response = {"message": "Unknown action."}
                     
@@ -318,6 +326,146 @@ class TCPServer:
             error_response = json.dumps({"message": "An error occurred while fetching article details and comments.", "details": str(e)})
             return error_response
     
+    def get_user_article(self, data):
+        try:
+            user_id = data
+
+            query = """
+            SELECT a.article_id, a.title, a.created_at
+            FROM ARTICLES a
+            WHERE a.author_id = %s AND a.status != 'archived';
+            """
+
+            conn = self.db
+            cursor = conn.cursor()
+            cursor.execute(query, (user_id,))
+            result = cursor.fetchall()
+
+            response = {
+                "articles": [
+                    {"article_id": article[0], "title": article[1], "created_at": article[2].isoformat()}
+                    for article in result
+                ]
+            }
+
+            cursor.close()
+
+            return response
+        
+        except Exception as e:
+            error_response = {
+                "message": str(e)
+            }
+            return error_response
+        
+    def archive_article(self, data):
+        try:
+            user_id = data["user_id"]
+            article_id = data["article_id"]
+
+            query = """
+            UPDATE ARTICLES
+            SET status = 'archived'
+            WHERE author_id = %s AND article_id = %s
+            RETURNING article_id, author_id, title, content, created_at;
+            """
+
+            conn = self.db
+            cursor = conn.cursor()
+            cursor.execute(query, (user_id, article_id))
+            article = cursor.fetchone()
+            conn.commit()
+
+            query = """
+            INSERT INTO ARCHIVED_ARTICLES (article_id, author_id, title, content, created_at, archived_at)
+            VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+            """
+
+            cursor.execute(query, (article[0], article[1], article[2], article[3], article[4]))
+            conn.commit()
+
+            response = {"message": "Article archived successfully!"}
+
+            cursor.close()
+
+            return response
+        
+        except Exception as e:
+            conn.rollback()
+            error_response = {
+                "message": str(e)
+            }
+            return error_response
+
+    def get_user_archive(self, data):
+        try:
+            user_id = data
+
+            query = """
+            SELECT a.article_id, a.title, a.created_at
+            FROM ARTICLES a
+            WHERE a.author_id = %s AND a.status = 'archived';
+            """
+
+            conn = self.db
+            cursor = conn.cursor()
+            cursor.execute(query, (user_id,))
+            result = cursor.fetchall()
+
+            response = {
+                "articles": [
+                    {"article_id": article[0], "title": article[1], "created_at": article[2].isoformat()}
+                    for article in result
+                ]
+            }
+
+            cursor.close()
+
+            return response
+        
+        except Exception as e:
+            error_response = {
+                "message": str(e)
+            }
+            return error_response
+        
+    def unarchive_article(self, data):
+        try:
+            user_id = data["user_id"]
+            article_id = data["article_id"]
+
+            query = """
+            UPDATE ARTICLES
+            SET status = 'active'
+            WHERE author_id = %s AND article_id = %s;
+            """
+
+            conn = self.db
+            cursor = conn.cursor()
+            cursor.execute(query, (user_id, article_id))
+            conn.commit()
+
+            query = """
+            DELETE FROM ARCHIVED_ARTICLES
+            WHERE author_id = %s AND article_id = %s;
+            """
+
+            cursor.execute(query, (user_id, article_id))
+            conn.commit()
+
+            response = {"message": "Article unarchived successfully!"}
+
+            cursor.close()
+
+            return response
+        
+        except Exception as e:
+            conn.rollback()
+            error_response = {
+                "message": str(e)
+            }
+            return error_response
+            
     def create_comment(self, data):
         try:
             article_id = data["article_id"]

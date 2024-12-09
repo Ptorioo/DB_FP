@@ -37,6 +37,8 @@ def view_profile(current_user, current_user_id, client_socket):
             "\n0 [EXIT] Return to menu\n"
             "1 [EMAIL] Change email\n"
             "2 [PWD] Change password\n"
+            "3 [ARTICLE] View your articles\n"
+            "4 [ARCHIVE] View archived articles\n"
             f"[{current_user}] >>>").strip().lower()
         
         match command:
@@ -68,6 +70,64 @@ def view_profile(current_user, current_user_id, client_socket):
                     print(response_data)
                     print("Password update failed.")
 
+                input("\nPress any key to continue...")
+            case "3" | "article":
+                client_socket.send(json.dumps({"action": "get_user_article", "data": current_user_id}).encode('utf-8'))
+                response = client_socket.recv(4096).decode('utf-8')
+                response_data = json.loads(response)
+
+                if articles := response_data.get("articles"):
+                    for i, article in enumerate(articles, start=1):
+                        print(f"[{i}] {article['title']} - at {article['created_at']}\n")
+                    
+                    command = input(
+                        "Select index to archive articles, or press 0 to exit: "
+                        )
+                    
+                    match command:
+                        case "0":
+                            pass
+                        case _ if command.isdigit() and int(command) != 0:
+                            client_socket.send(json.dumps({"action": "archive_article", "data": {"user_id": current_user_id, "article_id": articles[int(command) - 1]["article_id"]}}).encode('utf-8'))
+                            response = client_socket.recv(4096).decode('utf-8')
+                            response_data = json.loads(response)
+
+                            print(response_data.get("message"))
+                        case _:
+                            print("Invalid input. Please try again.")
+                            pass
+                else:
+                    print("You have no public articles yet.\n")
+                
+                input("\nPress any key to continue...")
+            case "4" | "archive":
+                client_socket.send(json.dumps({"action": "get_user_archive", "data": current_user_id}).encode('utf-8'))
+                response = client_socket.recv(4096).decode('utf-8')
+                response_data = json.loads(response)
+
+                if articles := response_data.get("articles"):
+                    for i, article in enumerate(articles, start=1):
+                        print(f"[{i}] {article['title']} - at {article['created_at']}\n")
+                    
+                    command = input(
+                        "Select index to unarchive articles, or press 0 to exit: "
+                        )
+                    
+                    match command:
+                        case "0":
+                            pass
+                        case _ if command.isdigit() and int(command) != 0:
+                            client_socket.send(json.dumps({"action": "unarchive_article", "data": {"user_id": current_user_id, "article_id": articles[int(command) - 1]["article_id"]}}).encode('utf-8'))
+                            response = client_socket.recv(4096).decode('utf-8')
+                            response_data = json.loads(response)
+
+                            print(response_data.get("message"))
+                        case _:
+                            print("Invalid input. Please try again.")
+                            pass
+                else:
+                    print("You have no public articles yet.\n")
+                
                 input("\nPress any key to continue...")
             case _:
                 print("Invalid input. Please try again.")
