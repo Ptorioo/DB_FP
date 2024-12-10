@@ -4,6 +4,8 @@
 
 你是否也曾在創作文章時覺得缺少共鳴？「筆知」是一個為文章創作者提供交流和互相學習的線上平台，讓擁有共同興趣和經歷的人們能夠在這裡分享想法、撰寫文章、閱讀別人的作品，並進行互動留言，打造充滿活力的文章社群。不論你是希望尋找志同道合的朋友，還是需要不同觀點來激發創意，「筆知」都能幫助你找到最適合的夥伴！
 
+:link: **[展示影片連結](https://youtu.be/AxJEC0WS7ME)**
+
 ## Features
 
 ### Users
@@ -86,9 +88,17 @@
 
 - If you like to start off with an empty database, you can use CREATE_TABLES.sql to create tables. And DB_Code contains code which is used for data generation.
 
-## Technical Details
-
 ## Structure
+
+- `./backup/`: Folder for past database backup files
+- `./client/`: Folder for client code
+- `DB_Code`: Folder for code used to generate data
+- `./server/`: Folder for server code
+- `./client/action/`: Functions that performs action (features)
+- `./server/utils/`: Utility functions for server
+- `CREATE_TABLES.sql`: SQL queries for table creation
+- `DB_FP`: Database backup file
+- `requirements.txt`: List of required dependencies
 
 ## Environment
 
@@ -97,6 +107,6 @@
 - Python: 3.11
 
   - psycopg2: 2.9.9
-  - python-dotenv: 1.0.0
+  - python-dotenv: 1.0.1
 
 - PostgreSQL: 16
