@@ -1241,13 +1241,13 @@ class TCPServer:
             user_id = data["user_id"]
             
             query = """
-            DELETE FROM USER
+            DELETE FROM USERS
             WHERE user_id = %s;
             """
             
             conn = self.db
             cursor = conn.cursor()
-            cursor.execute(query, (user_id))
+            cursor.execute(query, (user_id,))
             conn.commit()
 
             response = {

@@ -95,8 +95,8 @@ def view_report_a_details(client_socket, report):
             response = client_socket.recv(1024).decode('utf-8')
             response_data = json.loads(response)
 
-            if response_data.get("message") == "article deleted successfully!":
-                print("article deleted successfully.")
+            if response_data.get("message") == "Article deleted successfully!":
+                print("Article deleted successfully!")
                 
                 # 更新舉報狀態為 reviewed
                 client_socket.send(json.dumps({

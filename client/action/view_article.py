@@ -156,8 +156,6 @@ def view_article(selected_article_id, current_user, current_user_id, client_sock
                     response = client_socket.recv(1024).decode('utf-8')
                     response_data = json.loads(response)
 
-                    print(response_data)
-
                     if response_data.get("message") == "Comment reported successfully!":
                         print("Comment is being reported...")
                     else:

@@ -130,25 +130,25 @@ def remove_user(client_socket, user):
                     "N [No] Do not remove this user\n"
                     "Select Option: ").strip().lower()
 
-    if confirm != "yes" or confirm != "y":
-        print("User removal canceled.")
-        input("\nPress any key to continue...")
-        return
+    match confirm:
+        case "y" | "yes":
+            client_socket.send(json.dumps({
+                "action": "remove_user",
+                "data": {
+                    "user_id": user["user_id"]
+                }
+            }).encode('utf-8'))
+            response = client_socket.recv(1024).decode('utf-8')
+            response_data = json.loads(response)
 
-    client_socket.send(json.dumps({
-        "action": "remove_user",
-        "data": {
-            "user_id": user["user_id"]
-        }
-    }).encode('utf-8'))
-    response = client_socket.recv(1024).decode('utf-8')
-    response_data = json.loads(response)
-
-    if response_data.get("message") == "Delete successful!":
-        print("User removed successfully!")
-    else:
-        print(f"Failed to remove user. Error: {response_data.get('message', 'Unknown error')}")
-    input("\nPress any key to continue...")
-
+            if response_data.get("message") == "Delete successful!":
+                print("User removed successfully!")
+            else:
+                print(f"Failed to remove user. Error: {response_data.get('message', 'Unknown error')}")
+            input("\nPress any key to continue...")
+        case _:
+            print("User removal canceled.")
+            input("\nPress any key to continue...")
+            return
 
       
