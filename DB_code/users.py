@@ -1,36 +1,11 @@
-import psycopg2
-import random
-import string
-from faker import Faker
-
-# Initialize Faker
-faker = Faker()
-
-# PostgreSQL DB connection parameters
-db_password = "" # fill in your password
-DB_CONFIG = {
-    'dbname': 'DB_FP',
-    'user': 'postgres',
-    'host': 'localhost',
-    'password': db_password
-}
+from init import *
 
 # Number of users to generate
-NUM_USERS = 12000
+NUM_USERS = 120000
 
 # Function to generate random string (for passwords)
 def random_string(length):
     return ''.join(random.choices(string.ascii_letters, k=length))
-
-# Function to connect to PostgreSQL database
-def connect_to_postgres():
-    try:
-        conn = psycopg2.connect(**DB_CONFIG)
-        print("Connected to PostgreSQL!")
-        return conn
-    except Exception as e:
-        print(f"Error connecting to PostgreSQL: {e}")
-        raise
 
 # Ensure unique username by checking against existing usernames in the database
 def generate_unique_username(cursor):
@@ -51,38 +26,45 @@ def generate_unique_email(cursor, username):
         email = faker.user_name() + str(random.randint(10, 99)) + "@gmail.com"
     return email
 
+def hash_password(password: str) -> str:
+    sha1_hash = hashlib.sha1()
+
+    sha1_hash.update(password.encode('utf-8'))
+    return sha1_hash.hexdigest()[:20]
+
+
 # Function to insert data into USERS table
 def insert_data():
     conn = connect_to_postgres()
     cursor = conn.cursor()
 
     try:
-        users_data = []
 
-        for i in range(NUM_USERS):
+        for _ in range(NUM_USERS):
             # Ensure unique username and email by querying the database
             username = generate_unique_username(cursor)
             email = generate_unique_email(cursor, username)
-            password = random_string(12)
-            status = 'active'  # Default status
-            report_count = 0  # Default report count
+            password = random_string(8)
+            hashed_password = hash_password(password)
 
-            users_data.append((username, password, email, status, report_count))
+            if len(username) <= 20:
+                # Bulk insert into USERS table and get the returned user_id
+                query = """
+                    INSERT INTO USERS (username, password, email)
+                    VALUES (%s, %s, %s) RETURNING user_id;
+                """
+                cursor.execute(query, (username, hashed_password, email))
+                user_id = cursor.fetchone()[0]
 
-        # Bulk insert into USERS table and get the returned user_id
-        cursor.executemany("""
-            INSERT INTO USERS (username, password, email, status, report_count)
-            VALUES (%s, %s, %s, %s, %s) RETURNING user_id
-        """, users_data)
+                roles_query = """
+                    INSERT INTO USER_ROLE (user_id, role)
+                    VALUES (%s, 'User');
+                """
+                cursor.execute(roles_query, (user_id,))
 
-        # Commit and get user IDs from the returned results
-        conn.commit()
-        user_ids = [user_id[0] for user_id in cursor.fetchall()]
-
-        if user_ids:
-            print(f"Inserted {len(user_ids)} users.")
-        else:
-            print("No user IDs were returned.")
+                # Commit and get user IDs from the returned results
+                conn.commit()
+        
         
         # Check total users in the USERS table
         cursor.execute("SELECT COUNT(*) FROM USERS")
